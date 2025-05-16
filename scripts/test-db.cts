@@ -18,13 +18,8 @@ async function testConnection() {
     const client = await pool.connect();
     console.log("✅ Conectado a PostgreSQL correctamente");
 
-    // Obtener fecha actual de la BD
-    const resTime = await client.query("SELECT NOW()");
-    console.log("🕒 Fecha actual desde la DB:", resTime.rows[0]);
-
-    // Obtener usuarios (limita a 5 para no saturar)
-    const resUsers = await client.query("SELECT * FROM users LIMIT 5");
-    console.log("👥 Usuarios desde la DB:", resUsers.rows);
+    const res = await client.query("SELECT NOW()");
+    console.log("🕒 Fecha actual desde la DB:", res.rows[0]);
 
     client.release();
     await pool.end(); // Cierra el pool

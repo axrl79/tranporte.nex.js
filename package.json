@@ -2,14 +2,17 @@
   "name": "transporte-app",
   "version": "0.1.0",
   "private": true,
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx ./db/migrate.ts"
   },
   "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.8.2",
     "@radix-ui/react-avatar": "^1.1.9",
     "@radix-ui/react-dialog": "^1.1.13",
@@ -18,8 +21,10 @@
     "@radix-ui/react-progress": "^1.1.6",
     "@radix-ui/react-tabs": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.6",
+    "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "drizzle-orm": "^0.43.1",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",
@@ -33,6 +38,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/date-fns": "^2.5.3",
     "@types/dotenv": "^6.1.1",
     "@types/node": "^20.17.47",
     "@types/pg": "^8.15.2",
@@ -45,6 +52,8 @@
     "prisma": "^6.8.2",
     "tailwindcss": "^4.1.7",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
   }
 }
