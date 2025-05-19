@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { Bell, ChevronDown, ClipboardList, Home, LogOut, Menu, Settings, Truck, User, Users, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -17,16 +17,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { toast } from "@/components/ui/use-toast"
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
-  const router = useRouter()
 
   const routes = [
     {
@@ -36,7 +30,7 @@ export default function DashboardLayout({
       active: pathname === "/dashboard",
     },
     {
-      label: "Logística y Flota",
+      label: "Flota",
       icon: Truck,
       href: "/dashboard/fleet",
       active: pathname === "/dashboard/fleet",
@@ -60,36 +54,6 @@ export default function DashboardLayout({
       active: pathname === "/dashboard/settings",
     },
   ]
-
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Error al cerrar sesión")
-      }
-
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      })
-
-      // Redirigir al login
-      router.push("/login")
-    } catch (error) {
-      console.error("Error:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar la sesión",
-        variant: "destructive",
-      })
-    }
-  }
 
   return (
     <div className="h-full relative">
@@ -168,7 +132,7 @@ export default function DashboardLayout({
                     Configuración
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuItem>
                     <LogOut className="h-4 w-4 mr-2" />
                     Cerrar sesión
                   </DropdownMenuItem>

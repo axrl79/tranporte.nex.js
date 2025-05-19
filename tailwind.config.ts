@@ -20,10 +20,10 @@ const config = {
     },
     extend: {
       colors: {
-        navy: "#0A2342",
-        crimson: "#D81E5B",
-        beige: "#F2D0A4",
-        cream: "#F7F3E3",
+        navy: "var(--navy)",
+        crimson: "var(--crimson)",
+        beige: "var(--beige)",
+        cream: "var(--cream)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

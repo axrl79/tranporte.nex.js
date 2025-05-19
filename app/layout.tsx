@@ -2,22 +2,26 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Sistema de Gestión Logística",
-  description: "Sistema de Gestión Logística y Control Operativo para Transporte Seguro de Combustibles",
+  title: "Sistema de Gestión de Flota",
+  description: "Sistema Avanzado para la Gestión de Flota y Seguridad en el Transporte",
 }
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
     <html lang="es">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <Toaster />
+      </body>
     </html>
   )
 }
