@@ -19,6 +19,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { NewUserForm } from "@/components/users/new-user-form"
 import { toast } from "@/components/ui/use-toast"
+import { UserProfileDialog } from "@/components/users/user-profile-dialog"
+import { EditUserForm } from "@/components/users/edit-user-form"
+import { ChangeRoleDialog } from "@/components/users/change-role-dialog"
+import { ToggleStatusDialog } from "@/components/users/toggle-status-dialog"
 
 export default function UsersPage() {
   const [selectedRole, setSelectedRole] = useState<string>("Todos")
@@ -26,6 +30,13 @@ export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Estados para los diálogos
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false)
+  const [isToggleStatusOpen, setIsToggleStatusOpen] = useState(false)
 
   const fetchUsers = async () => {
     try {
@@ -76,6 +87,11 @@ export default function UsersPage() {
     setUsers((prevUsers) => [newUser, ...prevUsers])
   }
 
+  const handleUserUpdated = (updatedUser: any) => {
+    setUsers((prevUsers) => prevUsers.map((user) => (user.id === updatedUser.id ? updatedUser : user)))
+    setSelectedUser(updatedUser)
+  }
+
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A"
     const date = new Date(dateString)
@@ -101,6 +117,27 @@ export default function UsersPage() {
     if (diffMins < 60) return `Hace ${diffMins} minutos`
     if (diffHours < 24) return `Hace ${diffHours} horas`
     return `Hace ${diffDays} días`
+  }
+
+  // Funciones para abrir diálogos
+  const openProfile = (user: any) => {
+    setSelectedUser(user)
+    setIsProfileOpen(true)
+  }
+
+  const openEdit = (user: any) => {
+    setSelectedUser(user)
+    setIsEditOpen(true)
+  }
+
+  const openChangeRole = (user: any) => {
+    setSelectedUser(user)
+    setIsChangeRoleOpen(true)
+  }
+
+  const openToggleStatus = (user: any) => {
+    setSelectedUser(user)
+    setIsToggleStatusOpen(true)
   }
 
   return (
@@ -299,11 +336,23 @@ export default function UsersPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>Ver perfil</DropdownMenuItem>
-                              <DropdownMenuItem>Editar usuario</DropdownMenuItem>
-                              <DropdownMenuItem>Cambiar rol</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openProfile(user)}>
+                                <User className="h-4 w-4 mr-2" />
+                                Ver perfil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(user)}>
+                                <User className="h-4 w-4 mr-2" />
+                                Editar usuario
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openChangeRole(user)}>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Cambiar rol
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-[#D90429]">
+                              <DropdownMenuItem
+                                onClick={() => openToggleStatus(user)}
+                                className={user.active ? "text-[#D90429]" : "text-green-600"}
+                              >
                                 {user.active ? "Desactivar usuario" : "Activar usuario"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -319,7 +368,43 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* Formularios y diálogos */}
       <NewUserForm open={isNewUserFormOpen} onOpenChange={setIsNewUserFormOpen} onUserCreated={handleUserCreated} />
+
+      {selectedUser && (
+        <>
+          <UserProfileDialog
+            open={isProfileOpen}
+            onOpenChange={setIsProfileOpen}
+            user={selectedUser}
+            onEdit={() => {
+              setIsProfileOpen(false)
+              setIsEditOpen(true)
+            }}
+          />
+
+          <EditUserForm
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            user={selectedUser}
+            onUserUpdated={handleUserUpdated}
+          />
+
+          <ChangeRoleDialog
+            open={isChangeRoleOpen}
+            onOpenChange={setIsChangeRoleOpen}
+            user={selectedUser}
+            onRoleChanged={handleUserUpdated}
+          />
+
+          <ToggleStatusDialog
+            open={isToggleStatusOpen}
+            onOpenChange={setIsToggleStatusOpen}
+            user={selectedUser}
+            onStatusChanged={handleUserUpdated}
+          />
+        </>
+      )}
     </div>
   )
 }

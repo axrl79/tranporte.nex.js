@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Shield, ShieldAlert, User, Eye, EyeOff } from "lucide-react"
+import { Shield, ShieldAlert, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +19,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -32,81 +31,100 @@ const formSchema = z.object({
   email: z.string().email({
     message: "Ingrese un correo electrónico válido.",
   }),
-  password: z.string().min(8, {
-    message: "La contraseña debe tener al menos 8 caracteres.",
-  }),
+  password: z.string().optional(),
   role: z.enum(["admin", "operador", "conductor"], {
     required_error: "Por favor seleccione un rol.",
   }),
   phone: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
-  isActive: z.boolean(),
+  active: z.boolean(),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
-const defaultValues: Partial<FormValues> = {
-  name: "",
-  email: "",
-  password: "",
-  role: "operador",
-  phone: "",
-  address: "",
-  notes: "",
-  isActive: true,
-}
-
-interface NewUserFormProps {
+interface EditUserFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onUserCreated?: (user: any) => void
+  user: any
+  onUserUpdated?: (user: any) => void
 }
 
-export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormProps) {
+export function EditUserForm({ open, onOpenChange, user, onUserUpdated }: EditUserFormProps) {
   const [activeTab, setActiveTab] = useState("general")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "operador",
+      phone: "",
+      address: "",
+      notes: "",
+      active: true,
+    },
   })
 
+  // Actualizar el formulario cuando cambia el usuario
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        name: user.name,
+        email: user.email,
+        password: "",
+        role: user.role,
+        phone: user.phone || "",
+        address: user.address || "",
+        notes: user.notes || "",
+        active: user.active,
+      })
+    }
+  }, [user, form])
+
   async function onSubmit(data: FormValues) {
+    if (!user) return
+
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/users", {
-        method: "POST",
+      // Si la contraseña está vacía, la eliminamos para no actualizarla
+      const dataToSend = { ...data }
+      if (!dataToSend.password) {
+        delete dataToSend.password
+      }
+
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(dataToSend),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Error al crear el usuario")
+        throw new Error(errorData.error || "Error al actualizar el usuario")
       }
 
-      const newUser = await response.json()
+      const updatedUser = await response.json()
 
       toast({
-        title: "Usuario creado",
-        description: `${data.name} ha sido añadido como ${data.role}.`,
+        title: "Usuario actualizado",
+        description: `${data.name} ha sido actualizado correctamente.`,
       })
 
-      if (onUserCreated) {
-        onUserCreated(newUser)
+      if (onUserUpdated) {
+        onUserUpdated(updatedUser)
       }
 
-      form.reset(defaultValues)
       onOpenChange(false)
     } catch (error) {
       console.error("Error:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear el usuario",
+        description: error instanceof Error ? error.message : "Error al actualizar el usuario",
         variant: "destructive",
       })
     } finally {
@@ -124,8 +142,8 @@ export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] bg-white">
         <DialogHeader>
-          <DialogTitle className="text-xl">Añadir Nuevo Usuario</DialogTitle>
-          <DialogDescription>Complete el formulario para crear un nuevo usuario en el sistema.</DialogDescription>
+          <DialogTitle className="text-xl">Editar Usuario</DialogTitle>
+          <DialogDescription>Modifique la información del usuario</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -188,33 +206,15 @@ export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormPr
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contraseña</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Contraseña segura"
-                            {...field}
-                          />
-                        </FormControl>
-                        <button
-                          type="button"
-                          className="absolute right-2 top-2.5 text-muted-foreground hover:text-primary"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                      <FormDescription>Mínimo 8 caracteres, incluyendo letras y números.</FormDescription>
+                      <FormLabel>Contraseña (opcional)</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Dejar en blanco para mantener la actual" {...field} />
+                      </FormControl>
+                      <FormDescription>Solo complete este campo si desea cambiar la contraseña actual.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
               </TabsContent>
 
               <TabsContent value="role" className="space-y-4">
@@ -263,10 +263,6 @@ export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormPr
                           {roles.find((r) => r.value === form.watch("role"))?.description ||
                             "Seleccione un rol para ver su descripción."}
                         </p>
-                        {form.watch("role") === "admin" && <Badge className="mt-2 bg-[#0A2463]">Acceso Total</Badge>}
-                        {form.watch("role") === "operador" && (
-                          <Badge className="mt-2 bg-[#F9DC5C] text-[#0A2463]">Acceso Parcial</Badge>
-                        )}
                       </div>
                     </div>
                   ) : (
@@ -276,12 +272,16 @@ export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormPr
 
                 <FormField
                   control={form.control}
-                  name="isActive"
+                  name="active"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
                         <FormLabel className="text-base">Estado de la Cuenta</FormLabel>
-                        <FormDescription>Determina si el usuario estará activo inmediatamente.</FormDescription>
+                        <FormDescription>
+                          {field.value
+                            ? "La cuenta está activa y el usuario puede acceder al sistema."
+                            : "La cuenta está inactiva y el usuario no puede acceder al sistema."}
+                        </FormDescription>
                       </div>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -331,7 +331,7 @@ export function NewUserForm({ open, onOpenChange, onUserCreated }: NewUserFormPr
                 Cancelar
               </Button>
               <Button type="submit" className="bg-[#0A2463] hover:bg-[#0A2463]/90" disabled={isSubmitting}>
-                {isSubmitting ? "Creando..." : "Crear Usuario"}
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </DialogFooter>
           </form>
