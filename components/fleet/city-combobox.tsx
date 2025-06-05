@@ -45,16 +45,8 @@ export function CityCombobox({
   className,
 }: CityComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [searchTerm, setSearchTerm] = React.useState("")
 
   const selectedCity = bolivianCities.find((city) => city.name === value)
-
-  const filteredCities = bolivianCities.map(city => ({
-    ...city,
-    matchesSearch: searchTerm === "" || 
-      city.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      city.department.toLowerCase().includes(searchTerm.toLowerCase())
-  }))
 
   const handleSelect = (cityName: string) => {
     const city = bolivianCities.find((c) => c.name === cityName)
@@ -62,7 +54,6 @@ export function CityCombobox({
       onValueChange?.(cityName)
       onCitySelect?.(city)
       setOpen(false)
-      setSearchTerm("")
     }
   }
 
@@ -73,13 +64,13 @@ export function CityCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", className)}
+          className={cn("w-full justify-between h-10", className)}
         >
           {selectedCity ? (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>{selectedCity.name}</span>
-              <span className="text-xs text-muted-foreground">({selectedCity.department})</span>
+            <div className="flex items-center gap-2 truncate">
+              <MapPin className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="truncate">{selectedCity.name}</span>
+              <span className="text-xs text-muted-foreground flex-shrink-0">({selectedCity.department})</span>
             </div>
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
@@ -87,35 +78,34 @@ export function CityCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder="Buscar ciudad..." 
-            value={searchTerm}
-            onValueChange={setSearchTerm}
-          />
-          <CommandList>
+      <PopoverContent className="w-[400px] p-0 bg-white border shadow-lg" align="start">
+        <Command className="bg-white">
+          <CommandInput placeholder="Buscar ciudad..." className="h-9" />
+          <CommandList className="max-h-[200px] overflow-y-auto">
+            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+              No se encontraron ciudades.
+            </CommandEmpty>
             <CommandGroup>
-              {filteredCities.map((city) => (
+              {bolivianCities.map((city) => (
                 <CommandItem
                   key={city.name}
                   value={city.name}
                   onSelect={() => handleSelect(city.name)}
-                  className={cn(
-                    "flex items-center gap-2 transition-opacity",
-                    !city.matchesSearch ? "opacity-50" : "opacity-100"
-                  )}
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-100 aria-selected:bg-blue-50"
                 >
                   <Check
-                    className={cn("mr-2 h-4 w-4", selectedCity?.name === city.name ? "opacity-100" : "opacity-0")}
+                    className={cn(
+                      "h-4 w-4 flex-shrink-0",
+                      selectedCity?.name === city.name ? "opacity-100 text-blue-600" : "opacity-0",
+                    )}
                   />
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <span>{city.name}</span>
-                    <span className="text-xs text-muted-foreground">{city.department}</span>
+                  <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="font-medium text-gray-900 truncate">{city.name}</span>
+                    <span className="text-xs text-gray-500">{city.department}</span>
                   </div>
-                  <div className="ml-auto text-xs text-muted-foreground">
-                    {city.lat.toFixed(4)}, {city.lat.toFixed(4)}
+                  <div className="text-xs text-gray-400 flex-shrink-0 font-mono">
+                    {city.lat.toFixed(2)}, {city.lng.toFixed(2)}
                   </div>
                 </CommandItem>
               ))}

@@ -4,7 +4,21 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, ChevronDown, ClipboardList, Home, LogOut, Menu, Settings, Truck, User, Users, X } from "lucide-react"
+import {
+  Bell,
+  ChevronDown,
+  ClipboardList,
+  Home,
+  LogOut,
+  Menu,
+  Settings,
+  Truck,
+  User,
+  Users,
+  X,
+  Package,
+  Boxes,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -34,6 +48,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       icon: Truck,
       href: "/dashboard/fleet",
       active: pathname === "/dashboard/fleet",
+    },
+    {
+      label: "Almacén",
+      icon: Package,
+      href: "/dashboard/warehouse",
+      active: pathname.startsWith("/dashboard/warehouse"),
+    },
+    {
+      label: "Cargas",
+      icon: Boxes,
+      href: "/dashboard/loads",
+      active: pathname.startsWith("/dashboard/loads"),
     },
     {
       label: "Reportes",

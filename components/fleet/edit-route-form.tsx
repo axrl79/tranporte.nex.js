@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CityCombobox } from "@/components/fleet/city-combobox"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -57,40 +58,60 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-const defaultValues: Partial<FormValues> = {
-  name: "",
-  description: "",
-  originName: "",
-  originLat: 0,
-  originLng: 0,
-  destinationName: "",
-  destinationLat: 0,
-  destinationLng: 0,
-  distance: 0,
-  estimatedDuration: 0,
-  active: true,
-}
-
-interface NewRouteFormProps {
+interface EditRouteFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onRouteCreated?: (route: any) => void
+  route: any
+  onRouteUpdated?: (route: any) => void
 }
 
-export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFormProps) {
+export function EditRouteForm({ open, onOpenChange, route, onRouteUpdated }: EditRouteFormProps) {
   const [activeTab, setActiveTab] = useState("general")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: {
+      name: "",
+      description: "",
+      originName: "",
+      originLat: 0,
+      originLng: 0,
+      destinationName: "",
+      destinationLat: 0,
+      destinationLng: 0,
+      distance: 0,
+      estimatedDuration: 0,
+      active: true,
+    },
   })
 
+  // Cargar los datos de la ruta cuando cambia
+  useEffect(() => {
+    if (route) {
+      form.reset({
+        name: route.name,
+        description: route.description || "",
+        originName: route.originName,
+        originLat: Number.parseFloat(route.originLat),
+        originLng: Number.parseFloat(route.originLng),
+        destinationName: route.destinationName,
+        destinationLat: Number.parseFloat(route.destinationLat),
+        destinationLng: Number.parseFloat(route.destinationLng),
+        distance: Number.parseFloat(route.distance),
+        estimatedDuration: route.estimatedDuration,
+        active: route.active,
+      })
+    }
+  }, [route, form])
+
   async function onSubmit(data: FormValues) {
+    if (!route) return
+
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/routes", {
-        method: "POST",
+      const response = await fetch(`/api/routes/${route.id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
@@ -99,27 +120,26 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Error al crear la ruta")
+        throw new Error(errorData.error || "Error al actualizar la ruta")
       }
 
-      const newRoute = await response.json()
+      const updatedRoute = await response.json()
 
       toast({
-        title: "Ruta creada",
-        description: `La ruta ${data.name} ha sido creada exitosamente.`,
+        title: "Ruta actualizada",
+        description: `La ruta ${data.name} ha sido actualizada exitosamente.`,
       })
 
-      if (onRouteCreated) {
-        onRouteCreated(newRoute)
+      if (onRouteUpdated) {
+        onRouteUpdated(updatedRoute)
       }
 
-      form.reset(defaultValues)
       onOpenChange(false)
     } catch (error) {
       console.error("Error:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear la ruta",
+        description: error instanceof Error ? error.message : "Error al actualizar la ruta",
         variant: "destructive",
       })
     } finally {
@@ -127,7 +147,7 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
     }
   }
 
-  // Función para calcular distancia aproximada (fórmula de Haversine simplificada)
+  // Función para calcular distancia aproximada (fórmula de Haversine)
   const calculateDistance = () => {
     const originLat = form.getValues("originLat")
     const originLng = form.getValues("originLng")
@@ -148,8 +168,8 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
       const distance = R * c
 
       form.setValue("distance", Math.round(distance))
-      // Estimar duración (asumiendo 60 km/h promedio)
-      form.setValue("estimatedDuration", Math.round((distance / 60) * 60))
+      // Estimar duración (asumiendo 50 km/h promedio en Bolivia considerando terreno)
+      form.setValue("estimatedDuration", Math.round((distance / 50) * 60))
 
       toast({
         title: "Distancia calculada",
@@ -157,42 +177,41 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
       })
     }
   }
-  const bolivianCities = [
-    { name: "La Paz", lat: -16.4897, lng: -68.1193 },
-    { name: "Santa Cruz de la Sierra", lat: -17.7863, lng: -63.1812 },
-    { name: "Cochabamba", lat: -17.3895, lng: -66.1568 },
-    { name: "Sucre", lat: -19.0368, lng: -65.2592 },
-    { name: "Oruro", lat: -17.9833, lng: -67.15 },
-    { name: "Potosí", lat: -19.5836, lng: -65.7531 },
-    { name: "Tarija", lat: -21.5355, lng: -64.7296 },
-    { name: "Trinidad", lat: -14.8333, lng: -64.9 },
-    { name: "Cobija", lat: -11.0226, lng: -68.7666 },
-    { name: "El Alto", lat: -16.5, lng: -68.1667 },
-    { name: "Montero", lat: -17.3667, lng: -63.25 },
-    { name: "Quillacollo", lat: -17.4, lng: -66.2833 },
-    { name: "Sacaba", lat: -17.4, lng: -66.0333 },
-    { name: "Riberalta", lat: -11.0167, lng: -66.0667 },
-  ]
 
-  const fillCityCoordinates = (cityName: string, isOrigin: boolean) => {
-    const city = bolivianCities.find((c) => c.name.toLowerCase().includes(cityName.toLowerCase()))
-    if (city) {
-      if (isOrigin) {
-        form.setValue("originLat", city.lat)
-        form.setValue("originLng", city.lng)
-      } else {
-        form.setValue("destinationLat", city.lat)
-        form.setValue("destinationLng", city.lat)
-      }
+  // Función para manejar la selección de ciudad de origen
+  const handleOriginCitySelect = (city: { name: string; lat: number; lng: number }) => {
+    form.setValue("originName", city.name)
+    form.setValue("originLat", city.lat)
+    form.setValue("originLng", city.lng)
+
+    // Auto-generar nombre de ruta si ambas ciudades están seleccionadas
+    const destinationName = form.getValues("destinationName")
+    if (destinationName) {
+      form.setValue("name", `${city.name} - ${destinationName}`)
     }
   }
+
+  // Función para manejar la selección de ciudad de destino
+  const handleDestinationCitySelect = (city: { name: string; lat: number; lng: number }) => {
+    form.setValue("destinationName", city.name)
+    form.setValue("destinationLat", city.lat)
+    form.setValue("destinationLng", city.lng)
+
+    // Auto-generar nombre de ruta si ambas ciudades están seleccionadas
+    const originName = form.getValues("originName")
+    if (originName) {
+      form.setValue("name", `${originName} - ${city.name}`)
+    }
+  }
+
+  if (!route) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] bg-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Crear Nueva Ruta</DialogTitle>
-          <DialogDescription>Complete la información para crear una nueva ruta de transporte</DialogDescription>
+          <DialogTitle className="text-xl">Editar Ruta</DialogTitle>
+          <DialogDescription>Modifique la información de la ruta</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -238,7 +257,7 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                       <FormLabel>Descripción (Opcional)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Descripción adicional de la ruta, puntos de interés, etc."
+                          placeholder="Descripción adicional de la ruta, puntos de interés, condiciones especiales, etc."
                           className="resize-none"
                           {...field}
                         />
@@ -281,15 +300,13 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                         name="originName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nombre del Origen</FormLabel>
+                            <FormLabel>Ciudad de Origen</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="La Paz"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e)
-                                  fillCityCoordinates(e.target.value, true)
-                                }}
+                              <CityCombobox
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                onCitySelect={handleOriginCitySelect}
+                                placeholder="Seleccionar ciudad de origen..."
                               />
                             </FormControl>
                             <FormMessage />
@@ -343,15 +360,13 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                         name="destinationName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nombre del Destino</FormLabel>
+                            <FormLabel>Ciudad de Destino</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="Santa Cruz de la Sierra"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e)
-                                  fillCityCoordinates(e.target.value, false)
-                                }}
+                              <CityCombobox
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                onCitySelect={handleDestinationCitySelect}
+                                placeholder="Seleccionar ciudad de destino..."
                               />
                             </FormControl>
                             <FormMessage />
@@ -398,9 +413,10 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                     variant="outline"
                     onClick={calculateDistance}
                     className="flex items-center gap-2"
+                    disabled={!form.getValues("originLat") || !form.getValues("destinationLat")}
                   >
                     <Calculator className="h-4 w-4" />
-                    Calcular Distancia Automáticamente
+                    Recalcular Distancia
                   </Button>
                 </div>
               </TabsContent>
@@ -429,9 +445,11 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                       <FormItem>
                         <FormLabel>Duración Estimada (minutos)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="360" {...field} />
+                          <Input type="number" placeholder="540" {...field} />
                         </FormControl>
-                        <FormDescription>Tiempo estimado de viaje en minutos</FormDescription>
+                        <FormDescription>
+                          Tiempo estimado de viaje en minutos (considerando terreno boliviano)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -477,7 +495,7 @@ export function NewRouteForm({ open, onOpenChange, onRouteCreated }: NewRouteFor
                 Cancelar
               </Button>
               <Button type="submit" className="bg-[#0A2463] hover:bg-[#0A2463]/90" disabled={isSubmitting}>
-                {isSubmitting ? "Creando..." : "Crear Ruta"}
+                {isSubmitting ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </DialogFooter>
           </form>
