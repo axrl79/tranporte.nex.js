@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Package,
   Plus,
@@ -36,96 +36,97 @@ import { Progress } from "@/components/ui/progress"
 import { NewProductForm } from "@/components/warehouse/new-product-form"
 import { InventoryMovementForm } from "@/components/warehouse/inventory-movement-form"
 import { ProductDetailsDialog } from "@/components/warehouse/product-details-dialog"
+import { toast } from "@/components/ui/use-toast"
 
 // Datos simulados
-const products = [
-  {
-    id: "1",
-    code: "PROD-001",
-    name: "Aceite Motor 20W-50",
-    type: "liquido",
-    unit: "L",
-    currentStock: 150,
-    minStock: 50,
-    maxStock: 500,
-    availableStock: 120,
-    reservedStock: 30,
-    location: "A-01-15",
-    qrCode: "QR001",
-  },
-  {
-    id: "2",
-    code: "PROD-002",
-    name: "Filtro de Aire",
-    type: "general",
-    unit: "unidad",
-    currentStock: 25,
-    minStock: 20,
-    maxStock: 100,
-    availableStock: 25,
-    reservedStock: 0,
-    location: "B-03-08",
-    qrCode: "QR002",
-  },
-  {
-    id: "3",
-    code: "PROD-003",
-    name: "Gasolina Premium",
-    type: "liquido",
-    unit: "L",
-    currentStock: 2500,
-    minStock: 1000,
-    maxStock: 5000,
-    availableStock: 2200,
-    reservedStock: 300,
-    location: "C-01-01",
-    qrCode: "QR003",
-  },
-  {
-    id: "4",
-    code: "PROD-004",
-    name: "Repuestos Frenos",
-    type: "fragil",
-    unit: "kit",
-    currentStock: 8,
-    minStock: 15,
-    maxStock: 50,
-    availableStock: 8,
-    reservedStock: 0,
-    location: "D-02-12",
-    qrCode: "QR004",
-  },
-]
+// const products = [
+//   {
+//     id: "1",
+//     code: "PROD-001",
+//     name: "Aceite Motor 20W-50",
+//     type: "liquido",
+//     unit: "L",
+//     currentStock: 150,
+//     minStock: 50,
+//     maxStock: 500,
+//     availableStock: 120,
+//     reservedStock: 30,
+//     location: "A-01-15",
+//     qrCode: "QR001",
+//   },
+//   {
+//     id: "2",
+//     code: "PROD-002",
+//     name: "Filtro de Aire",
+//     type: "general",
+//     unit: "unidad",
+//     currentStock: 25,
+//     minStock: 20,
+//     maxStock: 100,
+//     availableStock: 25,
+//     reservedStock: 0,
+//     location: "B-03-08",
+//     qrCode: "QR002",
+//   },
+//   {
+//     id: "3",
+//     code: "PROD-003",
+//     name: "Gasolina Premium",
+//     type: "liquido",
+//     unit: "L",
+//     currentStock: 2500,
+//     minStock: 1000,
+//     maxStock: 5000,
+//     availableStock: 2200,
+//     reservedStock: 300,
+//     location: "C-01-01",
+//     qrCode: "QR003",
+//   },
+//   {
+//     id: "4",
+//     code: "PROD-004",
+//     name: "Repuestos Frenos",
+//     type: "fragil",
+//     unit: "kit",
+//     currentStock: 8,
+//     minStock: 15,
+//     maxStock: 50,
+//     availableStock: 8,
+//     reservedStock: 0,
+//     location: "D-02-12",
+//     qrCode: "QR004",
+//   },
+// ]
 
-const recentMovements = [
-  {
-    id: "1",
-    product: "Aceite Motor 20W-50",
-    type: "entrada",
-    quantity: 100,
-    user: "Juan Pérez",
-    timestamp: "2024-01-15 10:30",
-    reference: "FAC-001",
-  },
-  {
-    id: "2",
-    product: "Filtro de Aire",
-    type: "salida",
-    quantity: 5,
-    user: "María García",
-    timestamp: "2024-01-15 09:15",
-    reference: "CARGA-001",
-  },
-  {
-    id: "3",
-    product: "Gasolina Premium",
-    type: "salida",
-    quantity: 300,
-    user: "Carlos López",
-    timestamp: "2024-01-15 08:45",
-    reference: "VIAJE-001",
-  },
-]
+// const recentMovements = [
+//   {
+//     id: "1",
+//     product: "Aceite Motor 20W-50",
+//     type: "entrada",
+//     quantity: 100,
+//     user: "Juan Pérez",
+//     timestamp: "2024-01-15 10:30",
+//     reference: "FAC-001",
+//   },
+//   {
+//     id: "2",
+//     product: "Filtro de Aire",
+//     type: "salida",
+//     quantity: 5,
+//     user: "María García",
+//     timestamp: "2024-01-15 09:15",
+//     reference: "CARGA-001",
+//   },
+//   {
+//     id: "3",
+//     product: "Gasolina Premium",
+//     type: "salida",
+//     quantity: 300,
+//     user: "Carlos López",
+//     timestamp: "2024-01-15 08:45",
+//     reference: "VIAJE-001",
+//   },
+// ]
 
 export default function WarehousePage() {
   const [activeTab, setActiveTab] = useState("inventory")
@@ -134,6 +135,104 @@ export default function WarehousePage() {
   const [showProductDetails, setShowProductDetails] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState("")
+
+  // Add these state variables and functions
+  const [products, setProducts] = useState<any[]>([])
+  const [recentMovements, setRecentMovements] = useState<any[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true)
+  const [isLoadingMovements, setIsLoadingMovements] = useState(true)
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoadingProducts(true)
+      const response = await fetch("/api/products")
+      if (!response.ok) {
+        throw new Error("Error al cargar productos")
+      }
+      const data = await response.json()
+      setProducts(data)
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los productos",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingProducts(false)
+    }
+  }
+
+  const fetchMovements = async () => {
+    try {
+      setIsLoadingMovements(true)
+      const response = await fetch("/api/inventory-movements?limit=10")
+      if (!response.ok) {
+        throw new Error("Error al cargar movimientos")
+      }
+      const data = await response.json()
+      setRecentMovements(data)
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los movimientos",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingMovements(false)
+    }
+  }
+
+  // Add useEffect to load data
+  useEffect(() => {
+    fetchProducts()
+    fetchMovements()
+  }, [])
+
+  const handleProductCreated = (newProduct: any) => {
+    setProducts((prev) => [newProduct, ...prev])
+  }
+
+  const handleMovementCreated = (newMovement: any) => {
+    setRecentMovements((prev) => [newMovement, ...prev])
+    // Refresh products to update stock
+    fetchProducts()
+  }
+
+  // Add product actions
+  const handleEditProduct = async (productId: string) => {
+    // Implement edit product functionality
+    console.log("Edit product:", productId)
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm("¿Está seguro de que desea eliminar este producto?")) return
+
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al eliminar producto")
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== productId))
+      toast({
+        title: "Producto eliminado",
+        description: "El producto ha sido marcado como inactivo",
+      })
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar producto",
+        variant: "destructive",
+      })
+    }
+  }
 
   const filteredProducts = products.filter(
     (product) =>
@@ -300,97 +399,109 @@ export default function WarehousePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.map((product) => {
-                    const stockStatus = getStockStatus(product)
-                    const stockPercentage = (product.currentStock / product.maxStock) * 100
+                  {isLoadingProducts ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0A2463] mx-auto"></div>
+                        <p className="mt-2 text-sm text-muted-foreground">Cargando productos...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    filteredProducts.map((product) => {
+                      const stockStatus = getStockStatus(product)
+                      const stockPercentage = (product.currentStock / product.maxStock) * 100
 
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">{product.code}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-[#0A2463]" />
-                            {product.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getTypeColor(product.type)}>
-                            {product.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {product.currentStock} {product.unit}
-                            </span>
-                            <div className="w-16">
-                              <Progress value={stockPercentage} className="h-2" />
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell className="font-medium">{product.code}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-[#0A2463]" />
+                              {product.name}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {product.availableStock} {product.unit}
-                        </TableCell>
-                        <TableCell>
-                          {product.reservedStock} {product.unit}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              stockStatus.status === "critical"
-                                ? "bg-red-100 text-red-800"
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getTypeColor(product.type)}>
+                              {product.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {product.currentStock} {product.unit}
+                              </span>
+                              <div className="w-16">
+                                <Progress value={stockPercentage} className="h-2" />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {product.availableStock} {product.unit}
+                          </TableCell>
+                          <TableCell>
+                            {product.reservedStock} {product.unit}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                stockStatus.status === "critical"
+                                  ? "bg-red-100 text-red-800"
+                                  : stockStatus.status === "low"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-green-100 text-green-800"
+                              }
+                            >
+                              {stockStatus.status === "critical"
+                                ? "Crítico"
                                 : stockStatus.status === "low"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-green-100 text-green-800"
-                            }
-                          >
-                            {stockStatus.status === "critical"
-                              ? "Crítico"
-                              : stockStatus.status === "low"
-                                ? "Bajo"
-                                : "Normal"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{product.location}</TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Acciones</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedProduct(product)
-                                  setShowProductDetails(true)
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver detalles
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar producto
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <QrCode className="h-4 w-4 mr-2" />
-                                Generar QR
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <ArrowUpDown className="h-4 w-4 mr-2" />
-                                Movimiento
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
+                                  ? "Bajo"
+                                  : "Normal"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{product.location}</TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Acciones</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedProduct(product)
+                                    setShowProductDetails(true)
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver detalles
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditProduct(product.id)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar producto
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <QrCode className="h-4 w-4 mr-2" />
+                                  Generar QR
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                                  Movimiento
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteProduct(product.id)}>
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -479,8 +590,16 @@ export default function WarehousePage() {
       </Tabs>
 
       {/* Diálogos */}
-      <NewProductForm open={showNewProductForm} onOpenChange={setShowNewProductForm} />
-      <InventoryMovementForm open={showMovementForm} onOpenChange={setShowMovementForm} />
+      <NewProductForm
+        open={showNewProductForm}
+        onOpenChange={setShowNewProductForm}
+        onProductCreated={handleProductCreated}
+      />
+      <InventoryMovementForm
+        open={showMovementForm}
+        onOpenChange={setShowMovementForm}
+        onMovementCreated={handleMovementCreated}
+      />
       <ProductDetailsDialog open={showProductDetails} onOpenChange={setShowProductDetails} product={selectedProduct} />
     </div>
   )

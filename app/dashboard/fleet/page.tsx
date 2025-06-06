@@ -41,7 +41,6 @@ import { EditRouteForm } from "@/components/fleet/edit-route-form"
 import { RouteMapDialog } from "@/components/fleet/route-map-dialog"
 import { ScheduleTripForm } from "@/components/fleet/schedule-trip-form"
 import { ToggleRouteStatusDialog } from "@/components/fleet/toggle-route-status-dialog"
-import { Skeleton } from "@/components/ui/skeleton"
 
 export default function FleetPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("Todos")
@@ -165,27 +164,15 @@ export default function FleetPage() {
 
   const handleVehicleCreated = (newVehicle: any) => {
     setVehicles((prevVehicles) => [newVehicle, ...prevVehicles])
-    toast({
-      title: "Vehículo creado",
-      description: "El vehículo ha sido registrado exitosamente.",
-    })
   }
 
   const handleRouteCreated = (newRoute: any) => {
     setRoutes((prevRoutes) => [newRoute, ...prevRoutes])
-    toast({
-      title: "Ruta creada",
-      description: "La nueva ruta ha sido registrada exitosamente.",
-    })
   }
 
   const handleRouteUpdated = (updatedRoute: any) => {
     setRoutes((prevRoutes) => prevRoutes.map((route) => (route.id === updatedRoute.id ? updatedRoute : route)))
     setSelectedRoute(updatedRoute)
-    toast({
-      title: "Ruta actualizada",
-      description: "Los cambios en la ruta han sido guardados.",
-    })
   }
 
   const formatDate = (dateString: string) => {
@@ -242,36 +229,102 @@ export default function FleetPage() {
     })
   }
 
+  const handleViewVehicleDetails = async (vehicleId: string) => {
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`)
+      if (response.ok) {
+        const vehicleData = await response.json()
+        // You can implement a vehicle details dialog here
+        console.log("Vehicle details:", vehicleData)
+      }
+    } catch (error) {
+      console.error("Error:", error)
+    }
+  }
+
+  const handleEditVehicle = (vehicle: any) => {
+    // You can implement an edit vehicle dialog here
+    console.log("Edit vehicle:", vehicle)
+  }
+
+  const handleDeleteVehicle = async (vehicleId: string) => {
+    if (!confirm("¿Está seguro de que desea eliminar este vehículo?")) return
+
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al eliminar vehículo")
+      }
+
+      setVehicles((prev) => prev.filter((v) => v.id !== vehicleId))
+      toast({
+        title: "Vehículo eliminado",
+        description: "El vehículo ha sido marcado como inactivo",
+      })
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar vehículo",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleChangeVehicleStatus = async (vehicleId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al cambiar estado")
+      }
+
+      const updatedVehicle = await response.json()
+      setVehicles((prev) => prev.map((v) => (v.id === vehicleId ? updatedVehicle : v)))
+
+      toast({
+        title: "Estado actualizado",
+        description: `El estado del vehículo ha sido cambiado a ${newStatus}`,
+      })
+    } catch (error) {
+      console.error("Error:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al cambiar estado",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Flota</h1>
           <p className="text-muted-foreground">Administre vehículos y rutas de transporte</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
-            Exportar reporte
-          </Button>
-        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="fleet" className="flex items-center gap-2">
-            <Truck className="h-4 w-4" />
-            Vehículos
-          </TabsTrigger>
-          <TabsTrigger value="routes" className="flex items-center gap-2">
-            <Route className="h-4 w-4" />
-            Rutas
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="fleet">Vehículos</TabsTrigger>
+          <TabsTrigger value="routes">Rutas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fleet" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Vehículos</CardTitle>
                 <Truck className="h-4 w-4 text-muted-foreground" />
@@ -281,7 +334,7 @@ export default function FleetPage() {
                 <p className="text-xs text-muted-foreground">+2 desde el mes pasado</p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Disponibles</CardTitle>
                 <Check className="h-4 w-4 text-green-600" />
@@ -294,7 +347,7 @@ export default function FleetPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">En Ruta</CardTitle>
                 <MapPin className="h-4 w-4 text-blue-600" />
@@ -304,7 +357,7 @@ export default function FleetPage() {
                 <p className="text-xs text-muted-foreground">Actualmente en operación</p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Mantenimiento</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
@@ -316,168 +369,151 @@ export default function FleetPage() {
             </Card>
           </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar vehículos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
+                  className="pl-8 w-[300px]"
                 />
               </div>
-              
-              <div className="flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      {getStatusLabel(selectedStatus)}
-                      <ChevronDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {vehicleStatuses.map((status) => (
-                      <DropdownMenuCheckboxItem
-                        key={status.name}
-                        checked={selectedStatus === status.name}
-                        onCheckedChange={() => setSelectedStatus(status.name)}
-                        className="capitalize"
-                      >
-                        {status.label || status.name}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <Truck className="h-4 w-4" />
-                      {getTypeLabel(selectedType)}
-                      <ChevronDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {vehicleTypes.map((type) => (
-                      <DropdownMenuCheckboxItem
-                        key={type.name}
-                        checked={selectedType === type.name}
-                        onCheckedChange={() => setSelectedType(type.name)}
-                        className="capitalize"
-                      >
-                        {type.label || type.name}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="ml-auto">
+                    Estado: {getStatusLabel(selectedStatus)} <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {vehicleStatuses.map((status) => (
+                    <DropdownMenuCheckboxItem
+                      key={status.name}
+                      checked={selectedStatus === status.name}
+                      onCheckedChange={() => setSelectedStatus(status.name)}
+                    >
+                      {status.label || status.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Tipo: {getTypeLabel(selectedType)} <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {vehicleTypes.map((type) => (
+                    <DropdownMenuCheckboxItem
+                      key={type.name}
+                      checked={selectedType === type.name}
+                      onCheckedChange={() => setSelectedType(type.name)}
+                    >
+                      {type.label || type.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            
-            <Button onClick={() => setIsNewVehicleFormOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Nuevo Vehículo</span>
-              <span className="inline sm:hidden">Nuevo</span>
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
+              </Button>
+              <Button onClick={() => setIsNewVehicleFormOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Vehículo
+              </Button>
+            </div>
           </div>
 
-          <Card className="border-none shadow-sm">
-            <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="text-lg">Lista de Vehículos</CardTitle>
-                  <CardDescription>Gestione la información de todos los vehículos de la flota</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 gap-1">
-                    <Download className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Exportar</span>
-                  </Button>
-                </div>
-              </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Vehículos</CardTitle>
+              <CardDescription>Gestione la información de todos los vehículos de la flota</CardDescription>
             </CardHeader>
-            <CardContent className="px-0 sm:px-6 pb-0 sm:pb-6">
+            <CardContent>
               {isLoadingVehicles ? (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[250px]" />
-                      <Skeleton className="h-4 w-[200px]" />
-                    </div>
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0A2463] mx-auto"></div>
+                    <p className="mt-2 text-sm text-muted-foreground">Cargando vehículos...</p>
                   </div>
-                  <Skeleton className="h-[300px] w-full rounded-lg" />
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader className="bg-gray-50">
-                      <TableRow>
-                        <TableHead className="pl-6">Placa</TableHead>
-                        <TableHead>Marca/Modelo</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Año</TableHead>
-                        <TableHead>Capacidad</TableHead>
-                        <TableHead>Última Revisión</TableHead>
-                        <TableHead className="pr-6 text-right">Acciones</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Placa</TableHead>
+                      <TableHead>Marca/Modelo</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Año</TableHead>
+                      <TableHead>Capacidad</TableHead>
+                      <TableHead>Última Revisión</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVehicles.map((vehicle) => (
+                      <TableRow key={vehicle.id}>
+                        <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
+                        <TableCell>
+                          {vehicle.brand} {vehicle.model}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{getTypeLabel(vehicle.type)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(vehicle.status)}>{getStatusLabel(vehicle.status)}</Badge>
+                        </TableCell>
+                        <TableCell>{vehicle.year}</TableCell>
+                        <TableCell>{vehicle.capacity} ton</TableCell>
+                        <TableCell>{formatDate(vehicle.lastMaintenance)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menú</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleViewVehicleDetails(vehicle.id)}>
+                                Ver detalles
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditVehicle(vehicle)}>
+                                Editar vehículo
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>Historial de mantenimiento</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleChangeVehicleStatus(vehicle.id, "mantenimiento")}>
+                                Enviar a mantenimiento
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeVehicleStatus(vehicle.id, "disponible")}>
+                                Marcar como disponible
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteVehicle(vehicle.id)}
+                                className="text-red-600"
+                              >
+                                Eliminar vehículo
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredVehicles.length > 0 ? (
-                        filteredVehicles.map((vehicle) => (
-                          <TableRow key={vehicle.id} className="hover:bg-gray-50">
-                            <TableCell className="pl-6 font-medium">{vehicle.plateNumber}</TableCell>
-                            <TableCell>
-                              {vehicle.brand} {vehicle.model}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="capitalize">
-                                {getTypeLabel(vehicle.type)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={`${getStatusColor(vehicle.status)} capitalize`}>
-                                {getStatusLabel(vehicle.status)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{vehicle.year}</TableCell>
-                            <TableCell>{vehicle.capacity} ton</TableCell>
-                            <TableCell>{formatDate(vehicle.lastMaintenance)}</TableCell>
-                            <TableCell className="pr-6 text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Abrir menú</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                  <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                  <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                                  <DropdownMenuItem>Editar vehículo</DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                            No se encontraron vehículos
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
@@ -485,7 +521,7 @@ export default function FleetPage() {
 
         <TabsContent value="routes" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Rutas</CardTitle>
                 <Route className="h-4 w-4 text-muted-foreground" />
@@ -495,7 +531,7 @@ export default function FleetPage() {
                 <p className="text-xs text-muted-foreground">+1 desde el mes pasado</p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Rutas Activas</CardTitle>
                 <Check className="h-4 w-4 text-green-600" />
@@ -507,7 +543,7 @@ export default function FleetPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Distancia Total</CardTitle>
                 <MapPin className="h-4 w-4 text-blue-600" />
@@ -519,7 +555,7 @@ export default function FleetPage() {
                 <p className="text-xs text-muted-foreground">Suma de todas las rutas</p>
               </CardContent>
             </Card>
-            <Card className="hover:shadow-md transition-shadow">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Tiempo Total</CardTitle>
                 <Clock className="h-4 w-4 text-yellow-600" />
@@ -533,124 +569,102 @@ export default function FleetPage() {
             </Card>
           </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar rutas..."
-                value={routeSearchQuery}
-                onChange={(e) => setRouteSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar rutas..."
+                  value={routeSearchQuery}
+                  onChange={(e) => setRouteSearchQuery(e.target.value)}
+                  className="pl-8 w-[300px]"
+                />
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Exportar</span>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
               </Button>
-              <Button onClick={() => setIsNewRouteFormOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Nueva Ruta</span>
-                <span className="inline sm:hidden">Nueva</span>
+              <Button onClick={() => setIsNewRouteFormOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva Ruta
               </Button>
             </div>
           </div>
 
-          <Card className="border-none shadow-sm">
-            <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="text-lg">Lista de Rutas</CardTitle>
-                  <CardDescription>Gestione las rutas de transporte disponibles</CardDescription>
-                </div>
-              </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Rutas</CardTitle>
+              <CardDescription>Gestione las rutas de transporte disponibles</CardDescription>
             </CardHeader>
-            <CardContent className="px-0 sm:px-6 pb-0 sm:pb-6">
+            <CardContent>
               {isLoadingRoutes ? (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[250px]" />
-                      <Skeleton className="h-4 w-[200px]" />
-                    </div>
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0A2463] mx-auto"></div>
+                    <p className="mt-2 text-sm text-muted-foreground">Cargando rutas...</p>
                   </div>
-                  <Skeleton className="h-[300px] w-full rounded-lg" />
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader className="bg-gray-50">
-                      <TableRow>
-                        <TableHead className="pl-6">Nombre</TableHead>
-                        <TableHead>Origen</TableHead>
-                        <TableHead>Destino</TableHead>
-                        <TableHead>Distancia</TableHead>
-                        <TableHead>Duración</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Creada</TableHead>
-                        <TableHead className="pr-6 text-right">Acciones</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Origen</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead>Distancia</TableHead>
+                      <TableHead>Duración</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Creada</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRoutes.map((route) => (
+                      <TableRow key={route.id}>
+                        <TableCell className="font-medium">{route.name}</TableCell>
+                        <TableCell>{route.originName}</TableCell>
+                        <TableCell>{route.destinationName}</TableCell>
+                        <TableCell>{formatDistance(route.distance)}</TableCell>
+                        <TableCell>{formatDuration(route.estimatedDuration)}</TableCell>
+                        <TableCell>
+                          <Badge className={route.active ? "bg-green-500" : "bg-gray-500"}>
+                            {route.active ? "Activa" : "Inactiva"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(route.createdAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menú</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleViewDetails(route)}>Ver detalles</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditRoute(route)}>Editar ruta</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewMap(route)}>
+                                <MapIcon className="mr-2 h-4 w-4" />
+                                Ver en mapa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleScheduleTrip(route)}>
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Programar viaje
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleToggleStatus(route)}>
+                                {route.active ? "Desactivar ruta" : "Activar ruta"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredRoutes.length > 0 ? (
-                        filteredRoutes.map((route) => (
-                          <TableRow key={route.id} className="hover:bg-gray-50">
-                            <TableCell className="pl-6 font-medium">{route.name}</TableCell>
-                            <TableCell>{route.originName}</TableCell>
-                            <TableCell>{route.destinationName}</TableCell>
-                            <TableCell>{formatDistance(route.distance)}</TableCell>
-                            <TableCell>{formatDuration(route.estimatedDuration)}</TableCell>
-                            <TableCell>
-                              <Badge className={route.active ? "bg-green-500" : "bg-gray-500"}>
-                                {route.active ? "Activa" : "Inactiva"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{formatDate(route.createdAt)}</TableCell>
-                            <TableCell className="pr-6 text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Abrir menú</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={() => handleViewDetails(route)}>
-                                    Ver detalles
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleEditRoute(route)}>
-                                    Editar ruta
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleViewMap(route)}>
-                                    <MapIcon className="mr-2 h-4 w-4" />
-                                    Ver en mapa
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleScheduleTrip(route)}>
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Programar viaje
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleToggleStatus(route)}>
-                                    {route.active ? "Desactivar ruta" : "Activar ruta"}
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                            No se encontraron rutas
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

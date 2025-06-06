@@ -142,30 +142,23 @@ export function InventoryMovementForm({ open, onOpenChange, onMovementCreated }:
 
     setIsSubmitting(true)
     try {
-      const newStock = calculateNewStock()
-      const totalCost = data.unitCost ? data.quantity * data.unitCost : 0
+      const response = await fetch("/api/inventory-movements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          userId: "current-user-id", // En producción, obtener del contexto de usuario
+        }),
+      })
 
-      const newMovement = {
-        id: `movement-${Math.random().toString(36).substr(2, 9)}`,
-        ...data,
-        productName: selectedProduct.name,
-        productCode: selectedProduct.code,
-        unit: selectedProduct.unit,
-        previousStock: selectedProduct.currentStock,
-        newStock,
-        totalCost,
-        userId: "current-user-id",
-        userName: "Usuario Actual",
-        timestamp: new Date().toISOString(),
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al registrar movimiento")
       }
 
-      // En una implementación real, aquí haríamos el fetch a la API
-      // const response = await fetch("/api/inventory-movements", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(data),
-      // })
-      // const newMovement = await response.json()
+      const newMovement = await response.json()
 
       toast({
         title: "Movimiento registrado",
@@ -185,7 +178,7 @@ export function InventoryMovementForm({ open, onOpenChange, onMovementCreated }:
       console.error("Error:", error)
       toast({
         title: "Error",
-        description: "Error al registrar el movimiento",
+        description: error instanceof Error ? error.message : "Error al registrar movimiento",
         variant: "destructive",
       })
     } finally {

@@ -34,6 +34,51 @@ export const productTypeEnum = pgEnum("product_type", [
   "general",
 ])
 
+// ===== ENUMS ADICIONALES =====
+
+// Enum para tipos de contrato
+export const contractTypeEnum = pgEnum("contract_type", ["servicio", "kilometraje", "peso", "tiempo", "mixto"])
+
+// Enum para estados de factura
+export const invoiceStatusEnum = pgEnum("invoice_status", ["borrador", "enviada", "pagada", "vencida", "cancelada"])
+
+// Enum para tipos de pago
+export const paymentTypeEnum = pgEnum("payment_type", ["efectivo", "transferencia", "cheque", "tarjeta"])
+
+// Enum para estados de pago
+export const paymentStatusEnum = pgEnum("payment_status", ["pendiente", "procesando", "completado", "fallido"])
+
+// Enum para tipos de empleado
+export const employeeTypeEnum = pgEnum("employee_type", [
+  "conductor",
+  "mecanico",
+  "administrativo",
+  "supervisor",
+  "gerente",
+])
+
+// Enum para estados de empleado
+export const employeeStatusEnum = pgEnum("employee_status", [
+  "activo",
+  "inactivo",
+  "vacaciones",
+  "licencia",
+  "suspendido",
+])
+
+// Enum para tipos de documento
+export const documentTypeEnum = pgEnum("document_type", [
+  "licencia",
+  "cedula",
+  "pasaporte",
+  "certificado",
+  "contrato",
+  "otro",
+])
+
+// Enum para tipos de asistencia
+export const attendanceTypeEnum = pgEnum("attendance_type", ["entrada", "salida", "descanso_inicio", "descanso_fin"])
+
 // Tabla de usuarios
 export const users = pgTable("users", {
   id: text("id")
@@ -333,6 +378,277 @@ export const qrScans = pgTable("qr_scans", {
   metadata: text("metadata"), // JSON con información adicional
 })
 
+// ===== NUEVAS TABLAS PARA ADMINISTRACIÓN GENERAL =====
+
+// Tabla de clientes
+export const clients = pgTable("clients", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  businessName: varchar("business_name", { length: 255 }),
+  taxId: varchar("tax_id", { length: 50 }).unique(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("Bolivia"),
+  contactPerson: varchar("contact_person", { length: 255 }),
+  contactPhone: varchar("contact_phone", { length: 50 }),
+  contactEmail: varchar("contact_email", { length: 255 }),
+  creditLimit: decimal("credit_limit").default("0"),
+  currentBalance: decimal("current_balance").default("0"),
+  paymentTerms: integer("payment_terms").default(30), // días
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de contratos
+export const contracts = pgTable("contracts", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clients.id, { onDelete: "cascade" }),
+  type: contractTypeEnum("type").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  baseRate: decimal("base_rate").notNull(), // tarifa base
+  kmRate: decimal("km_rate"), // tarifa por km
+  weightRate: decimal("weight_rate"), // tarifa por peso
+  timeRate: decimal("time_rate"), // tarifa por tiempo
+  minimumCharge: decimal("minimum_charge"),
+  currency: varchar("currency", { length: 10 }).default("BOB"),
+  terms: text("terms"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de facturas
+export const invoices = pgTable("invoices", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  number: varchar("number", { length: 50 }).notNull().unique(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clients.id),
+  contractId: text("contract_id").references(() => contracts.id),
+  tripId: text("trip_id").references(() => trips.id),
+  issueDate: timestamp("issue_date").defaultNow().notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  status: invoiceStatusEnum("status").notNull().default("borrador"),
+  subtotal: decimal("subtotal").notNull(),
+  taxAmount: decimal("tax_amount").default("0"),
+  discountAmount: decimal("discount_amount").default("0"),
+  totalAmount: decimal("total_amount").notNull(),
+  currency: varchar("currency", { length: 10 }).default("BOB"),
+  notes: text("notes"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de items de factura
+export const invoiceItems = pgTable("invoice_items", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  invoiceId: text("invoice_id")
+    .notNull()
+    .references(() => invoices.id, { onDelete: "cascade" }),
+  description: varchar("description", { length: 255 }).notNull(),
+  quantity: decimal("quantity").notNull(),
+  unitPrice: decimal("unit_price").notNull(),
+  totalPrice: decimal("total_price").notNull(),
+  taxRate: decimal("tax_rate").default("0"),
+  order: integer("order").default(0),
+})
+
+// Tabla de pagos
+export const payments = pgTable("payments", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => clients.id),
+  invoiceId: text("invoice_id").references(() => invoices.id),
+  type: paymentTypeEnum("type").notNull(),
+  status: paymentStatusEnum("status").notNull().default("pendiente"),
+  amount: decimal("amount").notNull(),
+  currency: varchar("currency", { length: 10 }).default("BOB"),
+  paymentDate: timestamp("payment_date").defaultNow().notNull(),
+  reference: varchar("reference", { length: 100 }),
+  notes: text("notes"),
+  processedBy: text("processed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// ===== NUEVAS TABLAS PARA RECURSOS HUMANOS =====
+
+// Tabla de empleados
+export const employees = pgTable("employees", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  userId: text("user_id").references(() => users.id), // vinculación opcional con usuarios del sistema
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  birthDate: timestamp("birth_date"),
+  hireDate: timestamp("hire_date").notNull(),
+  terminationDate: timestamp("termination_date"),
+  type: employeeTypeEnum("type").notNull(),
+  status: employeeStatusEnum("status").notNull().default("activo"),
+  position: varchar("position", { length: 100 }).notNull(),
+  department: varchar("department", { length: 100 }),
+  salary: decimal("salary"),
+  emergencyContact: varchar("emergency_contact", { length: 255 }),
+  emergencyPhone: varchar("emergency_phone", { length: 50 }),
+  notes: text("notes"),
+  photo: text("photo"), // URL de la foto
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de documentos de empleados
+export const employeeDocuments = pgTable("employee_documents", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  employeeId: text("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  type: documentTypeEnum("type").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  number: varchar("number", { length: 100 }),
+  issueDate: timestamp("issue_date"),
+  expiryDate: timestamp("expiry_date"),
+  issuingAuthority: varchar("issuing_authority", { length: 255 }),
+  fileUrl: text("file_url"),
+  verified: boolean("verified").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de asistencias
+export const attendances = pgTable("attendances", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  employeeId: text("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  type: attendanceTypeEnum("type").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  location: varchar("location", { length: 255 }),
+  latitude: decimal("latitude"),
+  longitude: decimal("longitude"),
+  notes: text("notes"),
+  verifiedBy: text("verified_by").references(() => users.id),
+  tripId: text("trip_id").references(() => trips.id), // si está relacionado con un viaje
+})
+
+// Tabla de turnos
+export const shifts = pgTable("shifts", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  employeeId: text("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  breakDuration: integer("break_duration").default(0), // minutos
+  totalHours: decimal("total_hours"),
+  overtimeHours: decimal("overtime_hours").default("0"),
+  status: varchar("status", { length: 50 }).default("programado"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de evaluaciones de desempeño
+export const performanceEvaluations = pgTable("performance_evaluations", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  employeeId: text("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  evaluatorId: text("evaluator_id")
+    .notNull()
+    .references(() => users.id),
+  period: varchar("period", { length: 50 }).notNull(), // "2024-Q1", "2024-01", etc.
+  evaluationDate: timestamp("evaluation_date").defaultNow().notNull(),
+  punctualityScore: integer("punctuality_score"), // 1-10
+  safetyScore: integer("safety_score"), // 1-10
+  efficiencyScore: integer("efficiency_score"), // 1-10
+  customerServiceScore: integer("customer_service_score"), // 1-10
+  overallScore: decimal("overall_score"), // promedio
+  strengths: text("strengths"),
+  areasForImprovement: text("areas_for_improvement"),
+  goals: text("goals"),
+  comments: text("comments"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+// Tabla de estadísticas de conductores
+export const driverStats = pgTable("driver_stats", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => createId()),
+  employeeId: text("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  period: varchar("period", { length: 20 }).notNull(), // "2024-01", "2024-Q1", "2024"
+  totalTrips: integer("total_trips").default(0),
+  completedTrips: integer("completed_trips").default(0),
+  cancelledTrips: integer("cancelled_trips").default(0),
+  totalKm: decimal("total_km").default("0"),
+  totalHours: decimal("total_hours").default("0"),
+  fuelEfficiency: decimal("fuel_efficiency"), // km/L promedio
+  onTimeDeliveries: integer("on_time_deliveries").default(0),
+  lateDeliveries: integer("late_deliveries").default(0),
+  incidentsCount: integer("incidents_count").default(0),
+  customerRating: decimal("customer_rating"), // promedio de calificaciones
+  restDays: integer("rest_days").default(0),
+  overtimeHours: decimal("overtime_hours").default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
 // Relaciones existentes
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
@@ -386,6 +702,11 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   }),
   locations: many(tripLocations),
   loads: many(loads),
+  employeeDriver: one(employees, {
+    fields: [trips.driverId],
+    references: [employees.userId],
+    relationName: "employeeDriver",
+  }),
 }))
 
 export const tripLocationsRelations = relations(tripLocations, ({ one }) => ({
@@ -478,5 +799,120 @@ export const qrScansRelations = relations(qrScans, ({ one }) => ({
   scannedByUser: one(users, {
     fields: [qrScans.scannedBy],
     references: [users.id],
+  }),
+}))
+
+// Relaciones para administración
+export const clientsRelations = relations(clients, ({ many }) => ({
+  contracts: many(contracts),
+  invoices: many(invoices),
+  payments: many(payments),
+}))
+
+export const contractsRelations = relations(contracts, ({ one, many }) => ({
+  client: one(clients, {
+    fields: [contracts.clientId],
+    references: [clients.id],
+  }),
+  invoices: many(invoices),
+}))
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  client: one(clients, {
+    fields: [invoices.clientId],
+    references: [clients.id],
+  }),
+  contract: one(contracts, {
+    fields: [invoices.contractId],
+    references: [contracts.id],
+  }),
+  trip: one(trips, {
+    fields: [invoices.tripId],
+    references: [trips.id],
+  }),
+  items: many(invoiceItems),
+  payments: many(payments),
+}))
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+}))
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  client: one(clients, {
+    fields: [payments.clientId],
+    references: [clients.id],
+  }),
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
+  }),
+  processedByUser: one(users, {
+    fields: [payments.processedBy],
+    references: [users.id],
+  }),
+}))
+
+// Relaciones para RRHH
+export const employeesRelations = relations(employees, ({ one, many }) => ({
+  user: one(users, {
+    fields: [employees.userId],
+    references: [users.id],
+  }),
+  documents: many(employeeDocuments),
+  attendances: many(attendances),
+  shifts: many(shifts),
+  evaluations: many(performanceEvaluations),
+  stats: many(driverStats),
+  tripsAsDriver: many(trips, { relationName: "employeeDriver" }),
+}))
+
+export const employeeDocumentsRelations = relations(employeeDocuments, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeDocuments.employeeId],
+    references: [employees.id],
+  }),
+}))
+
+export const attendancesRelations = relations(attendances, ({ one }) => ({
+  employee: one(employees, {
+    fields: [attendances.employeeId],
+    references: [employees.id],
+  }),
+  verifiedByUser: one(users, {
+    fields: [attendances.verifiedBy],
+    references: [users.id],
+  }),
+  trip: one(trips, {
+    fields: [attendances.tripId],
+    references: [trips.id],
+  }),
+}))
+
+export const shiftsRelations = relations(shifts, ({ one }) => ({
+  employee: one(employees, {
+    fields: [shifts.employeeId],
+    references: [employees.id],
+  }),
+}))
+
+export const performanceEvaluationsRelations = relations(performanceEvaluations, ({ one }) => ({
+  employee: one(employees, {
+    fields: [performanceEvaluations.employeeId],
+    references: [employees.id],
+  }),
+  evaluator: one(users, {
+    fields: [performanceEvaluations.evaluatorId],
+    references: [users.id],
+  }),
+}))
+
+export const driverStatsRelations = relations(driverStats, ({ one }) => ({
+  employee: one(employees, {
+    fields: [driverStats.employeeId],
+    references: [employees.id],
   }),
 }))

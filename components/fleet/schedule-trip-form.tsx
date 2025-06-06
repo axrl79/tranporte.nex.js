@@ -104,22 +104,23 @@ export function ScheduleTripForm({ open, onOpenChange, route, onTripScheduled }:
 
     setIsSubmitting(true)
     try {
-      // Simulamos la creación del viaje
-      const newTrip = {
-        id: `trip-${Math.random().toString(36).substr(2, 9)}`,
-        routeId: route.id,
-        ...data,
-        status: "programado",
-        createdAt: new Date().toISOString(),
+      const response = await fetch("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          routeId: route.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al programar viaje")
       }
 
-      // En una implementación real, aquí haríamos el fetch a la API
-      // const response = await fetch("/api/trips", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ ...data, routeId: route.id }),
-      // })
-      // const newTrip = await response.json()
+      const newTrip = await response.json()
 
       toast({
         title: "Viaje programado",
@@ -136,7 +137,7 @@ export function ScheduleTripForm({ open, onOpenChange, route, onTripScheduled }:
       console.error("Error:", error)
       toast({
         title: "Error",
-        description: "Error al programar el viaje",
+        description: error instanceof Error ? error.message : "Error al programar viaje",
         variant: "destructive",
       })
     } finally {

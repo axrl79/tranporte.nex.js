@@ -62,6 +62,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       active: pathname.startsWith("/dashboard/loads"),
     },
     {
+      label: "Administración",
+      icon: ClipboardList,
+      href: "/dashboard/admin",
+      active: pathname.startsWith("/dashboard/admin"),
+    },
+    {
+      label: "RRHH",
+      icon: Users,
+      href: "/dashboard/hr",
+      active: pathname.startsWith("/dashboard/hr"),
+    },
+    {
       label: "Reportes",
       icon: ClipboardList,
       href: "/dashboard/reports",

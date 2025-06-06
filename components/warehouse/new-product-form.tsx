@@ -99,31 +99,20 @@ export function NewProductForm({ open, onOpenChange, onProductCreated }: NewProd
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true)
     try {
-      // Calcular stock disponible
-      const availableStock = data.currentStock
-      const reservedStock = 0
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
-      // Generar QR code
-      const qrCode = generateQRCode()
-
-      const newProduct = {
-        id: `product-${Math.random().toString(36).substr(2, 9)}`,
-        ...data,
-        availableStock,
-        reservedStock,
-        qrCode,
-        active: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al crear producto")
       }
 
-      // En una implementación real, aquí haríamos el fetch a la API
-      // const response = await fetch("/api/products", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(data),
-      // })
-      // const newProduct = await response.json()
+      const newProduct = await response.json()
 
       toast({
         title: "Producto creado",
@@ -141,7 +130,7 @@ export function NewProductForm({ open, onOpenChange, onProductCreated }: NewProd
       console.error("Error:", error)
       toast({
         title: "Error",
-        description: "Error al crear el producto",
+        description: error instanceof Error ? error.message : "Error al crear producto",
         variant: "destructive",
       })
     } finally {
