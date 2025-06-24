@@ -1,185 +1,312 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Users,
-  UserCheck,
-  Clock,
-  AlertTriangle,
-  TrendingUp,
-  Calendar,
-  Plus,
-  Eye,
-  Edit,
-  MoreHorizontal,
-  Car,
-  Award,
-  FileText,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { toast } from "@/components/ui/use-toast"
+import { NewEmployeeForm } from "@/components/hr/new-employee-form"
+import { DocumentRenewalDialog } from "@/components/hr/document-renewal-dialog"
+import { AttendanceSheet } from "@/components/hr/attendance-sheet"
+import { EmployeeViewDialog } from "@/components/hr/EmployeeViewDialog"
+import { EmployeeEditDialog } from "@/components/hr/EmployeeEditDialog"
+import { Users, UserPlus, FileText, AlertTriangle, Loader2, Eye, Pencil } from "lucide-react"
 
-// Datos simulados
-const hrStats = {
-  totalEmployees: 28,
-  activeDrivers: 15,
-  presentToday: 24,
-  onLeave: 2,
-  expiredDocuments: 3,
-  pendingEvaluations: 5,
+interface Employee {
+  id: string
+  code: string
+  fullName: string
+  position: string
+  type: 'conductor' | 'mecanico' | 'administrativo'
+  email?: string
+  phone?: string
+  address?: string
+  status: 'activo' | 'inactivo'
+  licenseExpiry?: string
+  medicalCertExpiry?: string
+  createdAt: string
 }
 
-const employees = [
-  {
-    id: "1",
-    code: "EMP-001",
-    name: "Carlos Mendoza",
-    position: "Conductor Senior",
-    type: "conductor",
-    status: "activo",
-    hireDate: "2022-03-15",
-    phone: "+591 7 1234567",
-    email: "carlos.mendoza@company.com",
-    lastAttendance: "2024-01-18 08:00",
-    performance: 8.5,
-    totalTrips: 145,
-    onTimeRate: 92,
-    photo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "2",
-    code: "EMP-002",
-    name: "Ana Rodriguez",
-    position: "Conductora",
-    type: "conductor",
-    status: "activo",
-    hireDate: "2023-01-20",
-    phone: "+591 7 2345678",
-    email: "ana.rodriguez@company.com",
-    lastAttendance: "2024-01-18 07:45",
-    performance: 9.2,
-    totalTrips: 89,
-    onTimeRate: 96,
-    photo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "3",
-    code: "EMP-003",
-    name: "Miguel Torres",
-    position: "Mecánico",
-    type: "mecanico",
-    status: "activo",
-    hireDate: "2021-08-10",
-    phone: "+591 7 3456789",
-    email: "miguel.torres@company.com",
-    lastAttendance: "2024-01-18 08:15",
-    performance: 8.8,
-    totalTrips: 0,
-    onTimeRate: 0,
-    photo: "/placeholder.svg?height=40&width=40",
-  },
-]
+interface DocumentAlert {
+  id: string
+  name: string
+  number?: string
+  expiryDate?: string
+  employee: {
+    id: string
+    fullName: string
+  }
+}
 
-const recentAttendances = [
-  {
-    id: "1",
-    employeeName: "Carlos Mendoza",
-    type: "entrada",
-    timestamp: "2024-01-18 08:00:00",
-    location: "Oficina Central",
-  },
-  {
-    id: "2",
-    employeeName: "Ana Rodriguez",
-    type: "entrada",
-    timestamp: "2024-01-18 07:45:00",
-    location: "Oficina Central",
-  },
-  {
-    id: "3",
-    employeeName: "Miguel Torres",
-    type: "entrada",
-    timestamp: "2024-01-18 08:15:00",
-    location: "Taller",
-  },
-]
+interface HRMetrics {
+  totalEmployees: number
+  activeEmployees: number
+  drivers: number
+  mechanics: number
+  documentAlerts: number
+  expiredDocuments: number
+}
 
-const documentAlerts = [
-  {
-    id: "1",
-    employeeName: "Carlos Mendoza",
-    documentType: "Licencia de Conducir",
-    expiryDate: "2024-02-15",
-    daysUntilExpiry: 28,
-  },
-  {
-    id: "2",
-    employeeName: "Ana Rodriguez",
-    documentType: "Certificado Médico",
-    expiryDate: "2024-01-30",
-    daysUntilExpiry: 12,
-  },
-  {
-    id: "3",
-    employeeName: "Luis Vargas",
-    documentType: "Licencia de Conducir",
-    expiryDate: "2024-01-25",
-    daysUntilExpiry: 7,
-  },
-]
+type AttendanceStatus = 'presente' | 'ausente' | 'licencia' | 'vacaciones'
+
+interface AttendanceRecord {
+  id: string
+  employeeId: string
+  employeeName: string
+  date: string
+  status: AttendanceStatus
+  checkIn?: string
+  checkOut?: string
+  notes?: string
+}
 
 export default function HRPage() {
-  const [selectedTab, setSelectedTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("overview")
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [hrMetrics, setHrMetrics] = useState<HRMetrics>({
+    totalEmployees: 0,
+    activeEmployees: 0,
+    drivers: 0,
+    mechanics: 0,
+    documentAlerts: 0,
+    expiredDocuments: 0
+  })
+  const [documentAlerts, setDocumentAlerts] = useState<DocumentAlert[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [showNewEmployeeForm, setShowNewEmployeeForm] = useState(false)
+  const [showDocumentRenewal, setShowDocumentRenewal] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [viewEmployee, setViewEmployee] = useState<Employee | null>(null)
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null)
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      activo: "default",
-      inactivo: "secondary",
-      vacaciones: "outline",
-      licencia: "secondary",
-      suspendido: "destructive",
-      entrada: "default",
-      salida: "secondary",
-    } as const
-
-    return <Badge variant={variants[status as keyof typeof variants] || "outline"}>{status}</Badge>
-  }
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "conductor":
-        return <Car className="h-4 w-4" />
-      case "mecanico":
-        return <Award className="h-4 w-4" />
-      default:
-        return <Users className="h-4 w-4" />
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch("/api/employees")
+      if (!response.ok) {
+        throw new Error("Error al cargar empleados")
+      }
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error("Error fetching employees:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los empleados",
+        variant: "destructive",
+      })
+      return []
     }
   }
 
-  return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Recursos Humanos</h2>
-        <div className="flex items-center space-x-2">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Empleado
-          </Button>
+  const fetchDocumentAlerts = async () => {
+    try {
+      const response = await fetch("/api/alerts?type=document_expiry&isResolved=false")
+      if (!response.ok) {
+        throw new Error("Error al cargar alertas")
+      }
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error("Error fetching document alerts:", error)
+      return []
+    }
+  }
+
+  const fetchAttendanceRecords = async () => {
+    try {
+      const response = await fetch("/api/attendance")
+      if (!response.ok) {
+        throw new Error("Error al cargar registros de asistencia")
+      }
+      const data = await response.json()
+      
+      // Mapear los datos para incluir el nombre del empleado
+      const recordsWithNames = await Promise.all(
+        data.map(async (record: any) => {
+          try {
+            const empResponse = await fetch(`/api/employees/${record.employeeId}`)
+            if (empResponse.ok) {
+              const employee = await empResponse.json()
+              return {
+                ...record,
+                employeeName: employee.fullName || `Empleado ${record.employeeId}`
+              }
+            }
+            return {
+              ...record,
+              employeeName: `Empleado ${record.employeeId}`
+            }
+          } catch (error) {
+            console.error(`Error fetching employee ${record.employeeId}:`, error)
+            return {
+              ...record,
+              employeeName: `Empleado ${record.employeeId}`
+            }
+          }
+        })
+      )
+      
+      return recordsWithNames
+    } catch (error) {
+      console.error("Error fetching attendance records:", error)
+      return []
+    }
+  }
+
+  const calculateMetrics = (employees: Employee[], alerts: DocumentAlert[]): HRMetrics => {
+    return {
+      totalEmployees: employees.length,
+      activeEmployees: employees.filter(e => e.status === "activo").length,
+      drivers: employees.filter(e => e.type === "conductor").length,
+      mechanics: employees.filter(e => e.type === "mecanico").length,
+      documentAlerts: alerts.length,
+      expiredDocuments: employees.filter(e => 
+        (e.licenseExpiry && new Date(e.licenseExpiry) < new Date()) || 
+        (e.medicalCertExpiry && new Date(e.medicalCertExpiry) < new Date())
+      ).length
+    }
+  }
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const [employeesData, alertsData, attendanceData] = await Promise.all([
+        fetchEmployees(),
+        fetchDocumentAlerts(),
+        fetchAttendanceRecords()
+      ])
+      
+      setEmployees(employeesData)
+      setDocumentAlerts(alertsData)
+      setAttendanceRecords(attendanceData)
+      setHrMetrics(calculateMetrics(employeesData, alertsData))
+    } catch (error) {
+      console.error("Error loading HR data:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos de RRHH",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handleEmployeeCreated = (newEmployee: Employee) => {
+    setEmployees(prev => [newEmployee, ...prev])
+    setHrMetrics(calculateMetrics([newEmployee, ...employees], documentAlerts))
+    toast({
+      title: "Éxito",
+      description: "Empleado creado correctamente",
+    })
+  }
+
+  const handleEmployeeUpdated = (updatedEmployee: Employee) => {
+    const updatedEmployees = employees.map(emp => 
+      emp.id === updatedEmployee.id ? updatedEmployee : emp
+    )
+    setEmployees(updatedEmployees)
+    setHrMetrics(calculateMetrics(updatedEmployees, documentAlerts))
+    toast({
+      title: "Éxito",
+      description: "Empleado actualizado correctamente",
+    })
+  }
+
+  const handleDocumentRenewed = (updatedEmployee: Employee) => {
+    const updatedEmployees = employees.map(emp => 
+      emp.id === updatedEmployee.id ? updatedEmployee : emp
+    )
+    setEmployees(updatedEmployees)
+    loadData() // Recargar todo para actualizar alertas
+    toast({
+      title: "Éxito",
+      description: "Documento renovado correctamente",
+    })
+  }
+
+  const isDocumentExpired = (expiryDate?: string) => {
+    if (!expiryDate) return false
+    return new Date(expiryDate) < new Date()
+  }
+
+  const isDocumentExpiringSoon = (expiryDate?: string) => {
+    if (!expiryDate) return false
+    const expiry = new Date(expiryDate)
+    const today = new Date()
+    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+    return expiry <= thirtyDaysFromNow && expiry >= today
+  }
+
+  const getDocumentStatusColor = (expiryDate?: string) => {
+    if (!expiryDate) return "bg-gray-100 text-gray-800"
+    if (isDocumentExpired(expiryDate)) return "bg-red-100 text-red-800"
+    if (isDocumentExpiringSoon(expiryDate)) return "bg-yellow-100 text-yellow-800"
+    return "bg-green-100 text-green-800"
+  }
+
+  const getDocumentStatusText = (expiryDate?: string) => {
+    if (!expiryDate) return "N/A"
+    if (isDocumentExpired(expiryDate)) return "Vencido"
+    if (isDocumentExpiringSoon(expiryDate)) return "Por Vencer"
+    return "Vigente"
+  }
+
+  const handleRenewDocument = (document: DocumentAlert) => {
+    const employee = employees.find(e => e.id === document.employee.id)
+    if (employee) {
+      setSelectedEmployee(employee)
+      setShowDocumentRenewal(true)
+    }
+  }
+
+  const getAttendanceStatusColor = (status: AttendanceStatus) => {
+    switch (status) {
+      case 'presente': return 'bg-green-100 text-green-800'
+      case 'ausente': return 'bg-red-100 text-red-800'
+      case 'licencia': return 'bg-blue-100 text-blue-800'
+      case 'vacaciones': return 'bg-purple-100 text-purple-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-12 w-12 text-[#0A2463] mx-auto" />
+          <p className="mt-4 text-lg text-muted-foreground">Cargando datos de RRHH...</p>
         </div>
       </div>
+    )
+  }
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Recursos Humanos</h1>
+          <p className="text-muted-foreground">Gestión integral del personal y documentación</p>
+        </div>
+        <Button onClick={() => setShowNewEmployeeForm(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Nuevo Empleado
+        </Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="employees">Empleados</TabsTrigger>
-          <TabsTrigger value="drivers">Conductores</TabsTrigger>
-          <TabsTrigger value="attendance">Asistencias</TabsTrigger>
           <TabsTrigger value="documents">Documentos</TabsTrigger>
+          <TabsTrigger value="attendance">Asistencias</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -191,76 +318,114 @@ export default function HRPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{hrStats.totalEmployees}</div>
-                <p className="text-xs text-muted-foreground">+2 nuevos este mes</p>
+                <div className="text-2xl font-bold">{hrMetrics.totalEmployees}</div>
+                <p className="text-xs text-muted-foreground">{hrMetrics.activeEmployees} activos</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Conductores Activos</CardTitle>
-                <Car className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Conductores</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{hrStats.activeDrivers}</div>
-                <p className="text-xs text-muted-foreground">de {hrStats.totalEmployees} empleados</p>
+                <div className="text-2xl font-bold">{hrMetrics.drivers}</div>
+                <p className="text-xs text-muted-foreground">personal de conducción</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Presentes Hoy</CardTitle>
-                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Mecánicos</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{hrStats.presentToday}</div>
-                <p className="text-xs text-muted-foreground">{hrStats.onLeave} en licencia</p>
+                <div className="text-2xl font-bold">{hrMetrics.mechanics}</div>
+                <p className="text-xs text-muted-foreground">personal técnico</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Documentos por Vencer</CardTitle>
+                <CardTitle className="text-sm font-medium">Alertas Documentos</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{hrStats.expiredDocuments}</div>
-                <p className="text-xs text-muted-foreground">Requieren atención</p>
+                <div className="text-2xl font-bold">{hrMetrics.documentAlerts}</div>
+                <p className="text-xs text-muted-foreground">requieren atención</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts and Recent Activity */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
+          {/* Recent Activity */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
               <CardHeader>
-                <CardTitle>Asistencias de la Semana</CardTitle>
+                <CardTitle>Documentos por Vencer</CardTitle>
+                <CardDescription>Próximos vencimientos de documentos</CardDescription>
               </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  Gráfico de asistencias semanales
+              <CardContent>
+                <div className="space-y-3">
+                  {employees
+                    .filter(emp => 
+                      isDocumentExpiringSoon(emp.licenseExpiry) || 
+                      isDocumentExpiringSoon(emp.medicalCertExpiry)
+                    )
+                    .slice(0, 5)
+                    .map(employee => (
+                      <div key={employee.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{employee.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{employee.position}</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedEmployee(employee)
+                            setShowDocumentRenewal(true)
+                          }}
+                        >
+                          Renovar
+                        </Button>
+                      </div>
+                    ))}
+                  {employees.filter(emp => 
+                    isDocumentExpiringSoon(emp.licenseExpiry) || 
+                    isDocumentExpiringSoon(emp.medicalCertExpiry)
+                  ).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No hay documentos por vencer en los próximos 30 días
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="col-span-3">
+            <Card>
               <CardHeader>
-                <CardTitle>Alertas de Documentos</CardTitle>
-                <CardDescription>Documentos próximos a vencer</CardDescription>
+                <CardTitle>Empleados Recientes</CardTitle>
+                <CardDescription>Últimas incorporaciones</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {documentAlerts.slice(0, 3).map((alert) => (
-                    <div key={alert.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium">{alert.employeeName}</p>
-                        <p className="text-xs text-muted-foreground">{alert.documentType}</p>
+                  {employees
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 5)
+                    .map(employee => (
+                      <div key={employee.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{employee.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{employee.position}</p>
+                        </div>
+                        <Badge variant="outline">{employee.type}</Badge>
                       </div>
-                      <Badge variant={alert.daysUntilExpiry <= 7 ? "destructive" : "secondary"}>
-                        {alert.daysUntilExpiry}d
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
+                  {employees.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No hay empleados registrados
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -270,184 +435,74 @@ export default function HRPage() {
         <TabsContent value="employees" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Gestión de Empleados</CardTitle>
-              <CardDescription>Administra el personal de la empresa</CardDescription>
+              <CardTitle>Lista de Empleados</CardTitle>
+              <CardDescription>Gestión completa del personal</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {employees.map((employee) => (
-                  <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarImage src={employee.photo || "/placeholder.svg"} />
-                        <AvatarFallback>
-                          {employee.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">{employee.name}</h4>
-                          <Badge variant="outline">{employee.code}</Badge>
-                          {getStatusBadge(employee.status)}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {getTypeIcon(employee.type)}
-                          <span>{employee.position}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Contratado: {employee.hireDate} | Última asistencia: {employee.lastAttendance}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Rendimiento:</span>
-                        <Badge variant="default">{employee.performance}/10</Badge>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver Perfil
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Documentos
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Clock className="mr-2 h-4 w-4" />
-                            Asistencias
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="drivers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestión de Conductores</CardTitle>
-              <CardDescription>Control especializado para conductores</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {employees
-                  .filter((emp) => emp.type === "conductor")
-                  .map((driver) => (
-                    <div
-                      key={driver.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-blue-50/50"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <Avatar>
-                          <AvatarImage src={driver.photo || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {driver.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold">{driver.name}</h4>
-                            <Badge variant="outline">{driver.code}</Badge>
-                            <Car className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <p className="text-sm text-muted-foreground">{driver.position}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span>
-                              Viajes: <strong>{driver.totalTrips}</strong>
-                            </span>
-                            <span>
-                              Puntualidad: <strong>{driver.onTimeRate}%</strong>
-                            </span>
-                            <span>
-                              Rendimiento: <strong>{driver.performance}/10</strong>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Progress value={driver.onTimeRate} className="w-20 h-2" />
-                          <span className="text-sm">{driver.onTimeRate}%</span>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employees.length > 0 ? (
+                    employees.map(employee => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-mono">{employee.code}</TableCell>
+                        <TableCell className="font-medium">{employee.fullName}</TableCell>
+                        <TableCell>{employee.position}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{employee.type}</Badge>
+                        </TableCell>
+                        <TableCell>{employee.email || "N/A"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              employee.status === "activo" 
+                                ? "bg-green-100 text-green-800" 
+                                : "bg-red-100 text-red-800"
+                            }
+                          >
+                            {employee.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setViewEmployee(employee)}
+                            >
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Perfil Completo
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <TrendingUp className="mr-2 h-4 w-4" />
-                              Estadísticas
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Car className="mr-2 h-4 w-4" />
-                              Historial de Viajes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Calendar className="mr-2 h-4 w-4" />
-                              Programar Descanso
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="attendance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Control de Asistencias</CardTitle>
-              <CardDescription>Registro de entradas y salidas del personal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentAttendances.map((attendance) => (
-                  <div key={attendance.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{attendance.employeeName}</h4>
-                        {getStatusBadge(attendance.type)}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {attendance.location} | {attendance.timestamp}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Clock className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setEditEmployee(employee)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-4">
+                        No hay empleados registrados
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
@@ -456,42 +511,140 @@ export default function HRPage() {
           <Card>
             <CardHeader>
               <CardTitle>Control de Documentos</CardTitle>
-              <CardDescription>Alertas y vencimientos de documentos</CardDescription>
+              <CardDescription>Seguimiento de licencias y certificaciones</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {documentAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <h4 className="font-semibold">{alert.employeeName}</h4>
-                      <p className="text-sm text-muted-foreground">{alert.documentType}</p>
-                      <p className="text-sm text-muted-foreground">Vence: {alert.expiryDate}</p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <Badge
-                        variant={
-                          alert.daysUntilExpiry <= 7
-                            ? "destructive"
-                            : alert.daysUntilExpiry <= 30
-                              ? "secondary"
-                              : "default"
-                        }
-                      >
-                        {alert.daysUntilExpiry} días
-                      </Badge>
-                      <div>
-                        <Button variant="outline" size="sm">
-                          Renovar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Empleado</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Vencimiento</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {documentAlerts.length > 0 ? (
+                    documentAlerts.map(document => (
+                      <TableRow key={document.id}>
+                        <TableCell className="font-medium">{document.employee.fullName}</TableCell>
+                        <TableCell>{document.name}</TableCell>
+                        <TableCell>{document.number || "N/A"}</TableCell>
+                        <TableCell>
+                          {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getDocumentStatusColor(document.expiryDate)}>
+                            {getDocumentStatusText(document.expiryDate)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleRenewDocument(document)}
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Renovar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No hay alertas de documentos
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="attendance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Registros de Asistencia</CardTitle>
+              <CardDescription>Historial completo de asistencias</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Empleado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Entrada</TableHead>
+                    <TableHead>Salida</TableHead>
+                    <TableHead>Notas</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRecords.length > 0 ? (
+                    attendanceRecords.map(record => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{record.employeeName}</TableCell>
+                        <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getAttendanceStatusColor(record.status)}>
+                            {record.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{record.checkIn || "N/A"}</TableCell>
+                        <TableCell>{record.checkOut || "N/A"}</TableCell>
+                        <TableCell className="max-w-xs truncate">{record.notes || "N/A"}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No hay registros de asistencia
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Diálogos */}
+      <NewEmployeeForm
+        open={showNewEmployeeForm}
+        onOpenChange={setShowNewEmployeeForm}
+        onEmployeeCreated={handleEmployeeCreated}
+      />
+
+      {selectedEmployee && (
+        <DocumentRenewalDialog
+          open={showDocumentRenewal}
+          onOpenChange={setShowDocumentRenewal}
+          employee={selectedEmployee}
+          onDocumentRenewed={handleDocumentRenewed}
+        />
+      )}
+
+      {viewEmployee && (
+        <EmployeeViewDialog
+          open={!!viewEmployee}
+          onOpenChange={() => setViewEmployee(null)}
+          employee={viewEmployee}
+        />
+      )}
+
+      {editEmployee && (
+        <EmployeeEditDialog
+          open={!!editEmployee}
+          onOpenChange={() => setEditEmployee(null)}
+          employee={editEmployee}
+          onEmployeeUpdated={handleEmployeeUpdated}
+        />
+      )}
     </div>
   )
 }

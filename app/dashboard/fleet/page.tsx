@@ -41,6 +41,8 @@ import { EditRouteForm } from "@/components/fleet/edit-route-form"
 import { RouteMapDialog } from "@/components/fleet/route-map-dialog"
 import { ScheduleTripForm } from "@/components/fleet/schedule-trip-form"
 import { ToggleRouteStatusDialog } from "@/components/fleet/toggle-route-status-dialog"
+import { VehicleDetailsDialog } from "@/components/fleet/VehicleDetailsDialog" 
+import { EditVehicleForm } from "@/components/fleet/EditVehicleForm" 
 
 export default function FleetPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("Todos")
@@ -54,6 +56,10 @@ export default function FleetPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [routeSearchQuery, setRouteSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("fleet")
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
+  const [isVehicleDetailsOpen, setIsVehicleDetailsOpen] = useState(false)
+  const [isEditVehicleOpen, setIsEditVehicleOpen] = useState(false)
+
 
   // Estados para los diálogos de rutas
   const [selectedRoute, setSelectedRoute] = useState<any>(null)
@@ -174,6 +180,7 @@ export default function FleetPage() {
     setRoutes((prevRoutes) => prevRoutes.map((route) => (route.id === updatedRoute.id ? updatedRoute : route)))
     setSelectedRoute(updatedRoute)
   }
+  
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A"
@@ -221,6 +228,7 @@ export default function FleetPage() {
     setSelectedRoute(route)
     setIsToggleRouteStatusOpen(true)
   }
+  
 
   const handleTripScheduled = (trip: any) => {
     toast({
@@ -229,22 +237,21 @@ export default function FleetPage() {
     })
   }
 
-  const handleViewVehicleDetails = async (vehicleId: string) => {
-    try {
-      const response = await fetch(`/api/vehicles/${vehicleId}`)
-      if (response.ok) {
-        const vehicleData = await response.json()
-        // You can implement a vehicle details dialog here
-        console.log("Vehicle details:", vehicleData)
-      }
-    } catch (error) {
-      console.error("Error:", error)
-    }
+   const handleViewVehicleDetails = (vehicle: any) => {
+    setSelectedVehicle(vehicle)
+    setIsVehicleDetailsOpen(true)
   }
 
   const handleEditVehicle = (vehicle: any) => {
-    // You can implement an edit vehicle dialog here
-    console.log("Edit vehicle:", vehicle)
+    setSelectedVehicle(vehicle)
+    setIsEditVehicleOpen(true)
+  }
+  const handleVehicleUpdated = (updatedVehicle: any) => {
+    setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v))
+    toast({
+      title: "Vehículo actualizado",
+      description: "Los datos del vehículo se han actualizado correctamente.",
+    })
   }
 
   const handleDeleteVehicle = async (vehicleId: string) => {
@@ -486,7 +493,7 @@ export default function FleetPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleViewVehicleDetails(vehicle.id)}>
+                              <DropdownMenuItem onClick={() => handleViewVehicleDetails(vehicle)}>
                                 Ver detalles
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditVehicle(vehicle)}>
@@ -682,6 +689,22 @@ export default function FleetPage() {
         open={isNewRouteFormOpen}
         onOpenChange={setIsNewRouteFormOpen}
         onRouteCreated={handleRouteCreated}
+      />
+      <VehicleDetailsDialog
+        open={isVehicleDetailsOpen}
+        onOpenChange={setIsVehicleDetailsOpen}
+        vehicle={selectedVehicle}
+        onEdit={() => {
+          setIsVehicleDetailsOpen(false)
+          setIsEditVehicleOpen(true)
+        }}
+      />
+
+      <EditVehicleForm
+        open={isEditVehicleOpen}
+        onOpenChange={setIsEditVehicleOpen}
+        vehicle={selectedVehicle}
+        onVehicleUpdated={handleVehicleUpdated}
       />
 
       {/* Diálogos de rutas */}

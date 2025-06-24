@@ -4,7 +4,23 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Bell, ChevronDown, ClipboardList, Home, LogOut, Menu, Settings, Truck, User, Users, X } from "lucide-react"
+import {
+  Bell,
+  ChevronDown,
+  ClipboardList,
+  Home,
+  LogOut,
+  Menu,
+  Settings,
+  Truck,
+  User,
+  Users,
+  X,
+  Package,
+  Box,
+  Wrench,
+  Route,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -42,16 +58,46 @@ export default function DashboardLayout({
       active: pathname === "/dashboard/fleet",
     },
     {
+      label: "Viajes",
+      icon: Route,
+      href: "/dashboard/trips",
+      active: pathname === "/dashboard/trips",
+    },
+    {
+      label: "Mantenimiento",
+      icon: Wrench,
+      href: "/dashboard/maintenance",
+      active: pathname === "/dashboard/maintenance",
+    },
+    {
+      label: "Almacén",
+      icon: Package,
+      href: "/dashboard/warehouse",
+      active: pathname === "/dashboard/warehouse",
+    },
+    {
+      label: "Cargas",
+      icon: Box,
+      href: "/dashboard/loads",
+      active: pathname === "/dashboard/loads",
+    },
+    {
+      label: "RRHH",
+      icon: Users,
+      href: "/dashboard/hr",
+      active: pathname === "/dashboard/hr",
+    },
+    {
+      label: "Administración",
+      icon: Settings,
+      href: "/dashboard/admin",
+      active: pathname === "/dashboard/admin",
+    },
+    {
       label: "Reportes",
       icon: ClipboardList,
       href: "/dashboard/reports",
       active: pathname === "/dashboard/reports",
-    },
-    {
-      label: "Usuarios",
-      icon: Users,
-      href: "/dashboard/users",
-      active: pathname === "/dashboard/users",
     },
     {
       label: "Configuración",
@@ -159,9 +205,11 @@ export default function DashboardLayout({
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="h-4 w-4 mr-2" />
-                    Perfil
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/profile">
+                      <User className="h-4 w-4 mr-2" />
+                      Perfil
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Settings className="h-4 w-4 mr-2" />
