@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { trips } from "@/db/schema"
+import { trips, vehicles, users, routes } from "@/db/schema"
 import { createId } from "@paralleldrive/cuid2"
+import { eq, desc, and, or, lte, gte } from "drizzle-orm"
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +21,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar disponibilidad del vehículo
-    const conflictingTrip = await db.query.trips.findFirst({
-      where: (trips, { and, eq, or, lte, gte }) =>
+    const conflictingTrip = await db
+      .select()
+      .from(trips)
+      .where(
         and(
           eq(trips.vehicleId, body.vehicleId),
           or(
@@ -39,9 +42,10 @@ export async function POST(request: NextRequest) {
             ),
           ),
         ),
-    })
+      )
+      .limit(1)
 
-    if (conflictingTrip) {
+    if (conflictingTrip.length > 0) {
       return NextResponse.json({ error: "El vehículo ya tiene un viaje programado en ese horario" }, { status: 409 })
     }
 
@@ -57,14 +61,59 @@ export async function POST(request: NextRequest) {
         scheduledEnd: new Date(body.scheduledEnd),
         status: body.status || "programado",
         cargo: body.cargo,
-        cargoWeight: body.cargoWeight || null,
+        cargoWeight: body.cargoWeight ? body.cargoWeight.toString() : null,
         notes: body.notes || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning()
 
-    return NextResponse.json(newTrip[0], { status: 201 })
+    // Obtener el viaje completo con relaciones
+    const tripWithRelations = await db
+      .select({
+        id: trips.id,
+        vehicleId: trips.vehicleId,
+        driverId: trips.driverId,
+        routeId: trips.routeId,
+        scheduledStart: trips.scheduledStart,
+        scheduledEnd: trips.scheduledEnd,
+        actualStart: trips.actualStart,
+        actualEnd: trips.actualEnd,
+        status: trips.status,
+        cargo: trips.cargo,
+        cargoWeight: trips.cargoWeight,
+        notes: trips.notes,
+        fuelConsumed: trips.fuelConsumed,
+        kmTraveled: trips.kmTraveled,
+        createdAt: trips.createdAt,
+        updatedAt: trips.updatedAt,
+        vehicle: {
+          id: vehicles.id,
+          plateNumber: vehicles.plateNumber,
+          type: vehicles.type,
+          status: vehicles.status,
+        },
+        driver: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+        route: {
+          id: routes.id,
+          name: routes.name,
+          originName: routes.originName,
+          destinationName: routes.destinationName,
+          distance: routes.distance,
+        },
+      })
+      .from(trips)
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .leftJoin(users, eq(trips.driverId, users.id))
+      .leftJoin(routes, eq(trips.routeId, routes.id))
+      .where(eq(trips.id, newTrip[0].id))
+      .limit(1)
+
+    return NextResponse.json(tripWithRelations[0], { status: 201 })
   } catch (error) {
     console.error("Error al crear viaje:", error)
     return NextResponse.json({ error: "Error al crear el viaje" }, { status: 500 })
@@ -77,27 +126,74 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const vehicleId = searchParams.get("vehicleId")
     const driverId = searchParams.get("driverId")
+    const limit = searchParams.get("limit")
 
-    const whereConditions: any[] = []
-
+    const whereConditions = []
     if (status) {
-      whereConditions.push((trips: any, { eq }: any) => eq(trips.status, status))
+      whereConditions.push(eq(trips.status, status))
     }
     if (vehicleId) {
-      whereConditions.push((trips: any, { eq }: any) => eq(trips.vehicleId, vehicleId))
+      whereConditions.push(eq(trips.vehicleId, vehicleId))
     }
     if (driverId) {
-      whereConditions.push((trips: any, { eq }: any) => eq(trips.driverId, driverId))
+      whereConditions.push(eq(trips.driverId, driverId))
     }
 
-    const allTrips = await db.query.trips.findMany({
-      with: {
-        vehicle: true,
-        driver: true,
-        route: true,
-      },
-      orderBy: (trips, { desc }) => [desc(trips.createdAt)],
-    })
+    const tripsQueryBase = db
+      .select({
+        id: trips.id,
+        vehicleId: trips.vehicleId,
+        driverId: trips.driverId,
+        routeId: trips.routeId,
+        scheduledStart: trips.scheduledStart,
+        scheduledEnd: trips.scheduledEnd,
+        actualStart: trips.actualStart,
+        actualEnd: trips.actualEnd,
+        status: trips.status,
+        cargo: trips.cargo,
+        cargoWeight: trips.cargoWeight,
+        notes: trips.notes,
+        fuelConsumed: trips.fuelConsumed,
+        kmTraveled: trips.kmTraveled,
+        createdAt: trips.createdAt,
+        updatedAt: trips.updatedAt,
+        vehicle: {
+          id: vehicles.id,
+          plateNumber: vehicles.plateNumber,
+          type: vehicles.type,
+          status: vehicles.status,
+        },
+        driver: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+        route: {
+          id: routes.id,
+          name: routes.name,
+          originName: routes.originName,
+          destinationName: routes.destinationName,
+          distance: routes.distance,
+        },
+      })
+      .from(trips);
+
+    const tripsQueryWithWhere =
+      whereConditions.length > 0
+        ? tripsQueryBase.where(and(...whereConditions))
+        : tripsQueryBase;
+
+    const tripsQuery = tripsQueryWithWhere
+      .leftJoin(vehicles, eq(trips.vehicleId, vehicles.id))
+      .leftJoin(users, eq(trips.driverId, users.id))
+      .leftJoin(routes, eq(trips.routeId, routes.id))
+      .orderBy(desc(trips.createdAt));
+
+    const limitedTripsQuery = limit
+      ? tripsQuery.limit(Number.parseInt(limit))
+      : tripsQuery;
+
+    const allTrips = await limitedTripsQuery;
 
     return NextResponse.json(allTrips)
   } catch (error) {

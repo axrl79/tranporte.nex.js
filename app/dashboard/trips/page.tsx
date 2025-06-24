@@ -1,46 +1,41 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
 import {
   Plus,
   Search,
-  MoreHorizontal,
-  Truck,
+  Filter,
   MapPin,
+  Truck,
   User,
   Calendar,
-  Play,
-  CheckCircle,
-  XCircle,
+  Clock,
+  Package,
+  MoreHorizontal,
   Eye,
-  Edit,
   Trash2,
+  Play,
+  Square,
+  CheckCircle,
+  Loader2,
 } from "lucide-react"
-import { ScheduleTripForm } from "@/components/fleet/schedule-trip-form"
+import { toast } from "@/components/ui/use-toast"
+import { ScheduleTripDialog } from "@/components/trips/schedule-trip-dialog"
+import { TripDetailsDialog } from "@/components/trips/trip-details-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Trip {
   id: string
-  routeId: string
-  routeName: string
   vehicleId: string
-  vehiclePlateNumber: string
   driverId: string
-  driverName: string
+  routeId: string
   scheduledStart: string
   scheduledEnd: string
   actualStart?: string
@@ -49,89 +44,129 @@ interface Trip {
   cargo: string
   cargoWeight?: number
   notes?: string
-  originName: string
-  destinationName: string
-  distance: number
-  estimatedDuration: number
+  vehicle?: {
+    id: string
+    plateNumber: string
+    type: string
+    status: string
+  }
+  driver?: {
+    id: string
+    name: string
+    email: string
+  }
+  route?: {
+    id: string
+    name: string
+    originName: string
+    destinationName: string
+    distance: number
+  }
+  createdAt: string
+  updatedAt: string
 }
 
-interface FleetRoute {
-  id: string
-  name: string
-  originName: string
-  destinationName: string
-  distance: number
-  estimatedDuration: number
-  status: string
+interface TripStats {
+  total: number
+  programado: number
+  en_curso: number
+  completado: number
+  cancelado: number
 }
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [routes, setRoutes] = useState<FleetRoute[]>([])
-  const [loading, setLoading] = useState(true)
+  const [filteredTrips, setFilteredTrips] = useState<Trip[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isMutating, setIsMutating] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [showScheduleForm, setShowScheduleForm] = useState(false)
-  const [selectedRoute, setSelectedRoute] = useState<FleetRoute | null>(null)
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false)
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
+  const [stats, setStats] = useState<TripStats>({
+    total: 0,
+    programado: 0,
+    en_curso: 0,
+    completado: 0,
+    cancelado: 0,
+  })
 
-  useEffect(() => {
-    fetchTrips()
-    fetchRoutes()
-  }, [])
-
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
+      setIsLoading(true)
       const response = await fetch("/api/trips")
-      if (response.ok) {
-        const data = await response.json()
-        setTrips(data)
+
+      if (!response.ok) {
+        throw new Error("Failed to load trips")
       }
+
+      const data = await response.json()
+      setTrips(data)
+
+      // Calculate statistics
+      const newStats = {
+        total: data.length,
+        programado: data.filter((t: Trip) => t.status === "programado").length,
+        en_curso: data.filter((t: Trip) => t.status === "en_curso").length,
+        completado: data.filter((t: Trip) => t.status === "completado").length,
+        cancelado: data.filter((t: Trip) => t.status === "cancelado").length,
+      }
+      setStats(newStats)
     } catch (error) {
       console.error("Error fetching trips:", error)
       toast({
         title: "Error",
-        description: "Error al cargar los viajes",
+        description: "No se pudieron cargar los viajes",
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
-  }
+  }, [])
 
-  const fetchRoutes = async () => {
-    try {
-      const response = await fetch("/api/routes")
-      if (response.ok) {
-        const data = await response.json()
-        setRoutes(data.filter((route: FleetRoute) => route.status === "activa"))
-      }
-    } catch (error) {
-      console.error("Error fetching routes:", error)
-    }
-  }
+  const filterTrips = useCallback(() => {
+    let filtered = [...trips]
 
-  const handleScheduleTrip = () => {
-    if (routes.length === 0) {
-      toast({
-        title: "Sin rutas disponibles",
-        description: "Debe crear al menos una ruta activa antes de programar viajes",
-        variant: "destructive",
-      })
-      return
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        (trip) =>
+          trip.vehicle?.plateNumber?.toLowerCase().includes(term) ||
+          trip.driver?.name?.toLowerCase().includes(term) ||
+          trip.route?.name?.toLowerCase().includes(term) ||
+          trip.cargo?.toLowerCase().includes(term),
+      )
     }
 
-    // Seleccionar la primera ruta disponible por defecto
-    setSelectedRoute(routes[0])
-    setShowScheduleForm(true)
-  }
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((trip) => trip.status === statusFilter)
+    }
 
-  const handleTripScheduled = (newTrip: Trip) => {
+    setFilteredTrips(filtered)
+  }, [trips, searchTerm, statusFilter])
+
+  useEffect(() => {
+    fetchTrips()
+  }, [fetchTrips])
+
+  useEffect(() => {
+    filterTrips()
+  }, [filterTrips])
+
+  const handleTripScheduled = useCallback((newTrip: Trip) => {
     setTrips((prev) => [newTrip, ...prev])
-    fetchTrips() // Refrescar la lista
-  }
+    toast({
+      title: "Viaje programado",
+      description: "El viaje ha sido programado exitosamente",
+    })
+  }, [])
 
-  const updateTripStatus = async (tripId: string, newStatus: Trip["status"]) => {
+  const handleStatusChange = async (tripId: string, newStatus: Trip["status"]) => {
     try {
+      setIsMutating(true)
       const response = await fetch(`/api/trips/${tripId}`, {
         method: "PATCH",
         headers: {
@@ -140,356 +175,442 @@ export default function TripsPage() {
         body: JSON.stringify({ status: newStatus }),
       })
 
-      if (response.ok) {
-        setTrips((prev) => prev.map((trip) => (trip.id === tripId ? { ...trip, status: newStatus } : trip)))
-        toast({
-          title: "Estado actualizado",
-          description: `El viaje ha sido ${newStatus}`,
-        })
+      if (!response.ok) {
+        throw new Error("Error al actualizar estado")
       }
+
+      const updatedTrip = await response.json()
+
+      setTrips((prev) =>
+        prev.map((trip) => (trip.id === tripId ? { ...trip, ...updatedTrip } : trip))
+      )
+
+      toast({
+        title: "Estado actualizado",
+        description: `El viaje ha sido marcado como ${newStatus}`,
+      })
     } catch (error) {
+      console.error("Error updating trip status:", error)
       toast({
         title: "Error",
-        description: "Error al actualizar el estado del viaje",
+        description: "No se pudo actualizar el estado del viaje",
         variant: "destructive",
       })
+    } finally {
+      setIsMutating(false)
     }
   }
 
-  const deleteTrip = async (tripId: string) => {
-    if (!confirm("¿Está seguro de que desea eliminar este viaje?")) return
-
+  const handleDeleteTrip = async (tripId: string) => {
     try {
+      setIsMutating(true)
       const response = await fetch(`/api/trips/${tripId}`, {
         method: "DELETE",
       })
 
-      if (response.ok) {
-        setTrips((prev) => prev.filter((trip) => trip.id !== tripId))
-        toast({
-          title: "Viaje eliminado",
-          description: "El viaje ha sido eliminado exitosamente",
-        })
+      if (!response.ok) {
+        throw new Error("Error al eliminar viaje")
       }
+
+      setTrips((prev) => prev.filter((trip) => trip.id !== tripId))
+
+      toast({
+        title: "Viaje eliminado",
+        description: "El viaje ha sido eliminado exitosamente",
+      })
     } catch (error) {
+      console.error("Error deleting trip:", error)
       toast({
         title: "Error",
-        description: "Error al eliminar el viaje",
+        description: "No se pudo eliminar el viaje",
         variant: "destructive",
       })
+    } finally {
+      setIsMutating(false)
     }
   }
 
-  const filteredTrips = trips.filter((trip) => {
-    const matchesSearch =
-      trip.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.vehiclePlateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.cargo.toLowerCase().includes(searchTerm.toLowerCase())
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return new Intl.DateTimeFormat("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date)
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return "Fecha inválida"
+    }
+  }
 
-    const matchesStatus = statusFilter === "all" || trip.status === statusFilter
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "programado":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-200"
+      case "en_curso":
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+      case "completado":
+        return "bg-green-100 text-green-800 hover:bg-green-200"
+      case "cancelado":
+        return "bg-red-100 text-red-800 hover:bg-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200"
+    }
+  }
 
-    return matchesSearch && matchesStatus
-  })
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "programado":
+        return <Clock className="h-3 w-3" />
+      case "en_curso":
+        return <Play className="h-3 w-3" />
+      case "completado":
+        return <CheckCircle className="h-3 w-3" />
+      case "cancelado":
+        return <Square className="h-3 w-3" />
+      default:
+        return <Clock className="h-3 w-3" />
+    }
+  }
 
-  const getStatusBadge = (status: Trip["status"]) => {
-    const statusConfig = {
-      programado: { color: "bg-blue-100 text-blue-800", icon: Calendar },
-      en_curso: { color: "bg-yellow-100 text-yellow-800", icon: Play },
-      completado: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-      cancelado: { color: "bg-red-100 text-red-800", icon: XCircle },
+  const renderStatsCards = () => {
+    if (isLoading) {
+      return Array(5).fill(0).map((_, i) => (
+        <Card key={`stat-skeleton-${i}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      ))
     }
 
-    const config = statusConfig[status]
-    const Icon = config.icon
-
     return (
-      <Badge className={config.color}>
-        <Icon className="w-3 h-3 mr-1" />
-        {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}
-      </Badge>
+      <>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <MapPin className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Programados</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.programado}</p>
+              </div>
+              <Clock className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">En Curso</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.en_curso}</p>
+              </div>
+              <Play className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Completados</p>
+                <p className="text-2xl font-bold text-green-600">{stats.completado}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Cancelados</p>
+                <p className="text-2xl font-bold text-red-600">{stats.cancelado}</p>
+              </div>
+              <Square className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </>
     )
   }
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
-  const formatDistance = (distance: number) => {
-    return `${distance.toLocaleString()} km`
-  }
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours}h ${mins}m`
-  }
-
-  // Estadísticas
-  const stats = {
-    total: trips.length,
-    programado: trips.filter((t) => t.status === "programado").length,
-    en_curso: trips.filter((t) => t.status === "en_curso").length,
-    completado: trips.filter((t) => t.status === "completado").length,
-    cancelado: trips.filter((t) => t.status === "cancelado").length,
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0A2463] mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Cargando viajes...</p>
+  const renderTripRow = (trip: Trip) => (
+    <TableRow key={trip.id} className="hover:bg-muted/50">
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Truck className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">{trip.vehicle?.plateNumber || "N/A"}</span>
         </div>
-      </div>
-    )
-  }
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <span>{trip.route?.name || "Ruta no disponible"}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span>{trip.driver?.name || "Sin asignar"}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <div className="font-medium">{trip.cargo}</div>
+            {trip.cargoWeight && (
+              <div className="text-xs text-muted-foreground">{trip.cargoWeight} ton</div>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">{formatDate(trip.scheduledStart)}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge className={`${getStatusColor(trip.status)} flex items-center gap-1 w-fit`}>
+          {getStatusIcon(trip.status)}
+          {trip.status.replace("_", " ")}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={isMutating}>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              {isMutating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedTrip(trip)
+                setShowDetailsDialog(true)
+              }}
+              disabled={isMutating}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Ver detalles
+            </DropdownMenuItem>
+
+            {trip.status === "programado" && (
+              <DropdownMenuItem 
+                onClick={() => handleStatusChange(trip.id, "en_curso")}
+                disabled={isMutating}
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Iniciar viaje
+              </DropdownMenuItem>
+            )}
+
+            {trip.status === "en_curso" && (
+              <DropdownMenuItem 
+                onClick={() => handleStatusChange(trip.id, "completado")}
+                disabled={isMutating}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Completar viaje
+              </DropdownMenuItem>
+            )}
+
+            {(trip.status === "programado" || trip.status === "en_curso") && (
+              <DropdownMenuItem
+                onClick={() => handleStatusChange(trip.id, "cancelado")}
+                className="text-red-600"
+                disabled={isMutating}
+              >
+                <Square className="mr-2 h-4 w-4" />
+                Cancelar viaje
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuItem 
+              onClick={() => handleDeleteTrip(trip.id)} 
+              className="text-red-600"
+              disabled={isMutating}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  )
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestión de Viajes</h1>
           <p className="text-muted-foreground">Programación, seguimiento y control de viajes</p>
         </div>
-        <Button onClick={handleScheduleTrip} className="bg-[#0A2463] hover:bg-[#0A2463]/90">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button 
+          onClick={() => setShowScheduleDialog(true)} 
+          className="bg-[#0A2463] hover:bg-[#0A2463]/90"
+          disabled={isLoading || isMutating}
+        >
+          {isLoading || isMutating ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="mr-2 h-4 w-4" />
+          )}
           Programar Viaje
         </Button>
       </div>
 
-      {/* Estadísticas */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Programados</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.programado}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Curso</CardTitle>
-            <Play className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.en_curso}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completados</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completado}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cancelados</CardTitle>
-            <XCircle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.cancelado}</div>
-          </CardContent>
-        </Card>
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {renderStatsCards()}
       </div>
 
-      {/* Filtros */}
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por ruta, vehículo, conductor o carga..."
+                  placeholder="Buscar por vehículo, conductor, ruta o carga..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-10"
+                  disabled={isLoading || isMutating}
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="programado">Programado</SelectItem>
-                <SelectItem value="en_curso">En Curso</SelectItem>
-                <SelectItem value="completado">Completado</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select 
+                value={statusFilter} 
+                onValueChange={setStatusFilter}
+                disabled={isLoading || isMutating}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="programado">Programado</SelectItem>
+                  <SelectItem value="en_curso">En Curso</SelectItem>
+                  <SelectItem value="completado">Completado</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabla de viajes */}
+      {/* Trips Table */}
       <Card>
         <CardHeader>
           <CardTitle>Lista de Viajes</CardTitle>
           <CardDescription>
-            {filteredTrips.length} viaje{filteredTrips.length !== 1 ? "s" : ""} encontrado
-            {filteredTrips.length !== 1 ? "s" : ""}
+            {filteredTrips.length} de {trips.length} viajes
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ruta</TableHead>
-                <TableHead>Vehículo</TableHead>
-                <TableHead>Conductor</TableHead>
-                <TableHead>Programado</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Carga</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTrips.map((trip) => (
-                <TableRow key={trip.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{trip.routeName}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-green-600" />
-                        {trip.originName}
-                        <span className="mx-1">→</span>
-                        <MapPin className="h-3 w-3 text-red-600" />
-                        {trip.destinationName}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDistance(trip.distance)} • {formatDuration(trip.estimatedDuration)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-[#0A2463]" />
-                      {trip.vehiclePlateNumber}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-[#0A2463]" />
-                      {trip.driverName}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>{formatDateTime(trip.scheduledStart)}</div>
-                      <div className="text-muted-foreground">hasta {formatDateTime(trip.scheduledEnd)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(trip.status)}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{trip.cargo}</div>
-                      {trip.cargoWeight && <div className="text-sm text-muted-foreground">{trip.cargoWeight} ton</div>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalles
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {trip.status === "programado" && (
-                          <DropdownMenuItem onClick={() => updateTripStatus(trip.id, "en_curso")}>
-                            <Play className="mr-2 h-4 w-4" />
-                            Iniciar viaje
-                          </DropdownMenuItem>
-                        )}
-                        {trip.status === "en_curso" && (
-                          <DropdownMenuItem onClick={() => updateTripStatus(trip.id, "completado")}>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Completar viaje
-                          </DropdownMenuItem>
-                        )}
-                        {(trip.status === "programado" || trip.status === "en_curso") && (
-                          <DropdownMenuItem onClick={() => updateTripStatus(trip.id, "cancelado")}>
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Cancelar viaje
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => deleteTrip(trip.id)} className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+          {isLoading ? (
+            <div className="space-y-4">
+              {Array(5).fill(0).map((_, i) => (
+                <Skeleton key={`row-skeleton-${i}`} className="h-16 w-full" />
               ))}
-            </TableBody>
-          </Table>
-
-          {filteredTrips.length === 0 && (
-            <div className="text-center py-8">
-              <Truck className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No hay viajes</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {searchTerm || statusFilter !== "all"
-                  ? "No se encontraron viajes con los filtros aplicados"
-                  : "Comience programando su primer viaje"}
+            </div>
+          ) : filteredTrips.length === 0 ? (
+            <div className="text-center py-12">
+              <MapPin className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">
+                {trips.length === 0 ? "No hay viajes programados" : "No se encontraron viajes"}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {trips.length === 0
+                  ? "Comienza programando tu primer viaje"
+                  : "Intenta ajustar los filtros de búsqueda"}
               </p>
-              {!searchTerm && statusFilter === "all" && (
-                <Button onClick={handleScheduleTrip} className="mt-4">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Programar Viaje
+              {trips.length === 0 && (
+                <Button 
+                  onClick={() => setShowScheduleDialog(true)}
+                  disabled={isMutating}
+                >
+                  {isMutating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Programar Primer Viaje
                 </Button>
               )}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vehículo</TableHead>
+                    <TableHead>Ruta</TableHead>
+                    <TableHead>Conductor</TableHead>
+                    <TableHead>Carga</TableHead>
+                    <TableHead>Programado</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTrips.map(renderTripRow)}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Formulario de programación */}
-      {selectedRoute && (
-        <ScheduleTripForm
-          open={showScheduleForm}
-          onOpenChange={setShowScheduleForm}
-          route={selectedRoute}
-          onTripScheduled={handleTripScheduled}
-        />
-      )}
+      {/* Dialogs */}
+      <ScheduleTripDialog
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        onTripScheduled={handleTripScheduled}
+      />
+
+      <TripDetailsDialog 
+        trip={selectedTrip} 
+        open={showDetailsDialog} 
+        onOpenChange={setShowDetailsDialog} 
+      />
     </div>
   )
 }

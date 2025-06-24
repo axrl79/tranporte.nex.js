@@ -18,6 +18,7 @@ import {
   X,
   Package,
   Boxes,
+  MapPin,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -55,11 +56,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       href: "/dashboard/warehouse",
       active: pathname.startsWith("/dashboard/warehouse"),
     },
+    
     {
-      label: "Cargas",
-      icon: Boxes,
-      href: "/dashboard/loads",
-      active: pathname.startsWith("/dashboard/loads"),
+      label: "Viajes",  
+      icon: MapPin,   
+      href: "/dashboard/trips",
+      active: pathname.startsWith("/dashboard/trips"),
     },
     {
       label: "Administración",

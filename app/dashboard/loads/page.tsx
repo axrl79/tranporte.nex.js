@@ -279,353 +279,348 @@ export default function LoadsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Cargas</h1>
-        <p className="text-muted-foreground">
-        Control de carga y descarga de mercancía • {metrics.totalLoads} cargas registradas
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setShowQRScanner(true)}>
-        <QrCode className="mr-2 h-4 w-4" />
-        Escanear QR
-        </Button>
-        <Button variant="outline" size="sm">
-        <Download className="mr-2 h-4 w-4" />
-        Exportar
-        </Button>
-        <Button 
-        className="bg-[#0A2463] hover:bg-[#0A2463]/90" 
-        onClick={() => setShowNewLoadForm(true)}
-        disabled={metrics.availableVehicles === 0}
-        >
-        <Plus className="mr-2 h-4 w-4" />
-        Nueva Carga
-        </Button>
-        <Button 
-        variant="outline" 
-        size="icon" 
-        onClick={loadInitialData}
-        title="Actualizar datos"
-        >
-        <RefreshCw className="h-4 w-4" />
-        </Button>
-      </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gestión de Cargas</h1>
+          <p className="text-muted-foreground">
+            Control de carga y descarga de mercancía • {metrics.totalLoads} cargas registradas
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowQRScanner(true)}>
+            <QrCode className="mr-2 h-4 w-4" />
+            Escanear QR
+          </Button>
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Button 
+            className="bg-[#0A2463] hover:bg-[#0A2463]/90" 
+            onClick={() => setShowNewLoadForm(true)}
+            disabled={metrics.availableVehicles === 0}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Carga
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={loadInitialData}
+            title="Actualizar datos"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Métricas principales */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="border-l-4 border-l-[#0A2463]">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Total Cargas</CardTitle>
-        <Boxes className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-        <div className="text-2xl font-bold">{metrics.totalLoads}</div>
-        <p className="text-xs text-muted-foreground">
-          {metrics.activeLoads} activas • {metrics.completedLoads} completadas
-        </p>
-        </CardContent>
-      </Card>
+        <Card className="border-l-4 border-l-[#0A2463]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Cargas</CardTitle>
+            <Boxes className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.totalLoads}</div>
+            <p className="text-xs text-muted-foreground">
+              {metrics.activeLoads} activas • {metrics.completedLoads} completadas
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="border-l-4 border-l-[#F9DC5C]">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Cargas Pendientes</CardTitle>
-        <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-        <div className="text-2xl font-bold">{metrics.pendingLoads}</div>
-        <p className="text-xs text-muted-foreground">
-          {metrics.availableVehicles} vehículos disponibles
-        </p>
-        </CardContent>
-      </Card>
+        <Card className="border-l-4 border-l-[#F9DC5C]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Cargas Pendientes</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.pendingLoads}</div>
+            <p className="text-xs text-muted-foreground">
+              {metrics.availableVehicles} vehículos disponibles
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="border-l-4 border-l-green-500">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Completadas</CardTitle>
-        <CheckCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-        <div className="text-2xl font-bold">{metrics.completedLoads}</div>
-        <p className="text-xs text-muted-foreground">
-          {new Date().toLocaleDateString('es-ES', { month: 'long' })}
-        </p>
-        </CardContent>
-      </Card>
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.completedLoads}</div>
+            <p className="text-xs text-muted-foreground">
+              {new Date().toLocaleDateString('es-ES', { month: 'long' })}
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="border-l-4 border-l-[#0A2463]">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Vehículos Disponibles</CardTitle>
-        <Truck className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-        <div className="text-2xl font-bold">{metrics.availableVehicles}</div>
-        <p className="text-xs text-muted-foreground">
-          {metrics.pendingLoads > 0 ? 
-          `${metrics.pendingLoads} cargas esperando vehículo` : 
-          "Todos asignados"}
-        </p>
-        </CardContent>
-      </Card>
+        <Card className="border-l-4 border-l-[#0A2463]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Vehículos Disponibles</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.availableVehicles}</div>
+            <p className="text-xs text-muted-foreground">
+              {metrics.pendingLoads > 0 ? 
+                `${metrics.pendingLoads} cargas esperando vehículo` : 
+                "Todos asignados"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="loads" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-      <TabsList className="bg-[#F2E9DC]">
-        <TabsTrigger value="loads" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
-        Cargas
-        </TabsTrigger>
-        <TabsTrigger value="activity" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
-        Actividad
-        </TabsTrigger>
-        <TabsTrigger value="control" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
-        Control QR
-        </TabsTrigger>
-      </TabsList>
+        <TabsList className="bg-[#F2E9DC]">
+          <TabsTrigger value="loads" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
+            Cargas
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
+            Actividad
+          </TabsTrigger>
+          <TabsTrigger value="control" className="data-[state=active]:bg-[#0A2463] data-[state=active]:text-white">
+            Control QR
+          </TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="loads" className="space-y-4">
-        <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <CardTitle>Lista de Cargas</CardTitle>
-            <CardDescription>
-            {filteredLoads.length} de {loads.length} cargas mostradas
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar cargas..."
-              value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              className="pl-8 w-[300px]"
-            />
-            </div>
-            <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
-            </Button>
-          </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredLoads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <Package className="h-8 w-8 text-muted-foreground" />
-            <p className="text-muted-foreground">
-            {searchTerm ? "No se encontraron cargas" : "No hay cargas registradas"}
-            </p>
-            {!searchTerm && (
-            <Button onClick={() => setShowNewLoadForm(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Crear primera carga
-            </Button>
-            )}
-          </div>
-          ) : (
-          <Table>
-            <TableHeader>
-            <TableRow>
-              <TableHead>Código</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Vehículo</TableHead>
-              <TableHead>Destino</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Peso (T)</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-            </TableHeader>
-            <TableBody>
-            {filteredLoads.map((load: Load) => (
-              <TableRow key={load.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-              <TableCell className="font-medium">{load.code}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className={getStatusColor(load.status)}>
-                <div className="flex items-center gap-1">
-                  {getStatusIcon(load.status)}
-                  {getStatusText(load.status)}
+        <TabsContent value="loads" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <CardTitle>Lista de Cargas</CardTitle>
+                  <CardDescription>
+                    {filteredLoads.length} de {loads.length} cargas mostradas
+                  </CardDescription>
                 </div>
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {load.vehiclePlate ? (
-                <div className="flex items-center gap-1">
-                  <Truck className="h-4 w-4 text-[#0A2463]" />
-                  {load.vehiclePlate}
-                </div>
-                ) : (
-                <span className="text-muted-foreground">Sin asignar</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                <MapPin className="h-3 w-3 text-muted-foreground" />
-                {load.destination}
-                </div>
-              </TableCell>
-              <TableCell>{load.client}</TableCell>
-              <TableCell>{load.totalWeight.toFixed(1)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                <Package className="h-3 w-3 text-muted-foreground" />
-                {load.itemsCount}
-                </div>
-              </TableCell>
-              <TableCell>
                 <div className="flex items-center gap-2">
-                <Progress value={load.loadingProgress} className="h-2 w-16" />
-                <span className="text-xs">{load.loadingProgress}%</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Acciones</span>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar cargas..."
+                      value={searchTerm}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                      className="pl-8 w-[300px]"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtros
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                  onClick={() => {
-                    setSelectedLoad(load)
-                    setShowLoadDetails(true)
-                  }}
-                  >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver detalles
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar carga
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Ver QR
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Checklist
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-              </TableRow>
-            ))}
-            </TableBody>
-          </Table>
-          )}
-        </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="activity" className="space-y-4">
-        <Card>
-        <CardHeader>
-          <CardTitle>Actividad Reciente</CardTitle>
-          <CardDescription>
-          {recentActivity.length} eventos registrados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentActivity.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-muted-foreground">No hay actividad registrada</p>
-          </div>
-          ) : (
-          <div className="space-y-4">
-            {recentActivity.map((activity: Activity) => (
-            <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50">
-              <div className="flex items-center gap-4">
-              <div className={`rounded-full p-2 ${
-                activity.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-              }`}>
-                {activity.type === 'system' ? (
-                <AlertCircle className="h-4 w-4" />
-                ) : (
-                <CheckCircle className="h-4 w-4" />
-                )}
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{activity.action}</p>
-                <p className="text-sm text-muted-foreground">
-                {activity.load} • {activity.user}
+            </CardHeader>
+            <CardContent>
+              {filteredLoads.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    {searchTerm ? "No se encontraron cargas" : "No hay cargas registradas"}
+                  </p>
+                  {!searchTerm && (
+                    <Button onClick={() => setShowNewLoadForm(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear primera carga
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Vehículo</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Peso (T)</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Progreso</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLoads.map((load: Load) => (
+                      <TableRow key={load.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <TableCell className="font-medium">{load.code}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getStatusColor(load.status)}>
+                            <div className="flex items-center gap-1">
+                              {getStatusIcon(load.status)}
+                              {getStatusText(load.status)}
+                            </div>
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {load.vehiclePlate ? (
+                            <div className="flex items-center gap-1">
+                              <Truck className="h-4 w-4 text-[#0A2463]" />
+                              {load.vehiclePlate}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Sin asignar</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-muted-foreground" />
+                            {load.destination}
+                          </div>
+                        </TableCell>
+                        <TableCell>{load.client}</TableCell>
+                        <TableCell>{load.totalWeight.toFixed(1)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Package className="h-3 w-3 text-muted-foreground" />
+                            {load.itemsCount}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={load.loadingProgress} className="h-2 w-16" />
+                            <span className="text-xs">{load.loadingProgress}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Acciones</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedLoad(load)
+                                  setShowLoadDetails(true)
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver detalles
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar carga
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <QrCode className="h-4 w-4 mr-2" />
+                                Ver QR
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Checklist
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Actividad Reciente</CardTitle>
+              <CardDescription>
+                {recentActivity.length} eventos registrados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-muted-foreground">No hay actividad registrada</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivity.map((activity: Activity) => (
+                    <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50">
+                      <div className="flex items-center gap-4">
+                        <div className={`rounded-full p-2 ${
+                          activity.type === 'system' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {activity.type === 'system' ? (
+                            <AlertCircle className="h-4 w-4" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{activity.action}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {activity.load} • {activity.user}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {activity.timestamp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="control" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Control por Código QR</CardTitle>
+              <CardDescription>Escaneo y control de cargas mediante códigos QR</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <QrCode className="h-16 w-16 mx-auto text-[#0A2463]/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">Control de Carga/Descarga</h3>
+                <p className="text-muted-foreground mb-6">
+                  Utilice el escáner QR para controlar el proceso de carga y descarga de mercancía
                 </p>
+                <Button 
+                  onClick={() => setShowQRScanner(true)} 
+                  className="bg-[#0A2463] hover:bg-[#0A2463]/90"
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Abrir Escáner
+                </Button>
               </div>
-              </div>
-              <div className="text-sm text-muted-foreground flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {activity.timestamp}
-              </div>
-            </div>
-            ))}
-          </div>
-          )}
-        </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="control" className="space-y-4">
-        <Card>
-        <CardHeader>
-          <CardTitle>Control por Código QR</CardTitle>
-          <CardDescription>Escaneo y control de cargas mediante códigos QR</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-          <QrCode className="h-16 w-16 mx-auto text-[#0A2463]/50 mb-4" />
-          <h3 className="text-lg font-medium mb-2">Control de Carga/Descarga</h3>
-          <p className="text-muted-foreground mb-6">
-            Utilice el escáner QR para controlar el proceso de carga y descarga de mercancía
-          </p>
-          <Button 
-            onClick={() => setShowQRScanner(true)} 
-            className="bg-[#0A2463] hover:bg-[#0A2463]/90"
-          >
-            <QrCode className="mr-2 h-4 w-4" />
-            Abrir Escáner
-          </Button>
-          </div>
-        </CardContent>
-        </Card>
-      </TabsContent>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Diálogos */}
-      <NewLoadForm 
-      open={showNewLoadForm} 
-      onOpenChange={setShowNewLoadForm} 
-      onLoadCreated={handleLoadCreated}
-      availableVehicles={availableVehicles}
-      />
+      
       
       <LoadDetailsDialog 
-      open={showLoadDetails} 
-      onOpenChange={setShowLoadDetails} 
-      load={selectedLoad}
+        open={showLoadDetails} 
+        onOpenChange={setShowLoadDetails} 
+        load={selectedLoad}
       />
       
       <QRScannerDialog 
-      open={showQRScanner} 
-      onOpenChange={setShowQRScanner} 
-      onScanSuccess={(loadId: string) => {
-        toast({
-        title: "QR Escaneado",
-        description: "La carga ha sido verificada correctamente",
-        })
-        // Actualizar el estado específico de la carga escaneada
-        setLoads((prev: Load[]) => prev.map((load: Load) => 
-        load.id === loadId ? {...load, status: 'completado'} : load
-        ))
-        loadInitialData()
-      }}
+        open={showQRScanner} 
+        onOpenChange={setShowQRScanner} 
+        onScanSuccess={(loadId: string) => {
+          toast({
+            title: "QR Escaneado",
+            description: "La carga ha sido verificada correctamente",
+          })
+          // Actualizar el estado específico de la carga escaneada
+          setLoads((prev: Load[]) => prev.map((load: Load) => 
+            load.id === loadId ? {...load, status: 'completado'} : load
+          ))
+          loadInitialData()
+        }}
       />
     </div>
   )
